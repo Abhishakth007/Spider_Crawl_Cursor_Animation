@@ -20,13 +20,14 @@ await run("spawn-pointer", {}, { spawn: "pointer", size: 40 }, async (p) => {
   const s = await p.evaluate(() => { const c = [...document.querySelectorAll("canvas")].pop(); const r = c.getBoundingClientRect(); return { cx: r.x + r.width / 2, cy: r.y + r.height / 2, perched: document.documentElement.hasAttribute("data-spider-perched"), pos: window.s2.position() }; });
   console.log("spawn pointer:", JSON.stringify({ perched: s.perched, head: s.pos.head, pivot: [s.pos.x, s.pos.y] }));
 });
-// reduced motion: slower, no fidget, still arrives
+// reduced motion: one still frame at the pointer; it does not walk, perch or run a loop
 await run("reduced", { reducedMotion: "reduce" }, { size: 34 }, async (p) => {
   await p.mouse.move(700, 450);
-  let n = 0; let maxV = 0;
-  const t0 = Date.now(); let arrived = null;
-  while (Date.now() - t0 < 25000) { await p.waitForTimeout(200); const s = await p.evaluate(() => window.s2.state()); maxV = Math.max(maxV, s.v); if (s.perched) { arrived = Date.now() - t0; break; } }
-  console.log("reduced motion: arrived in", arrived, "ms, max speed", maxV.toFixed(0), "px/s");
+  await p.waitForTimeout(1500);
+  const s = await p.evaluate(() => window.s2.state());
+  const near = await p.evaluate(() => { const q = window.s2.position(); return Math.hypot(q.head.x - 700, q.head.y - 450); });
+  console.log("reduced motion: motion=" + s.effectiveMotion + " strip=" + s.strip + " perched=" + s.perched + " ticks=" + s.metrics.rafTicks + " head " + near.toFixed(0) + " px from the pointer");
+  if (!(s.effectiveMotion === "reduced" && s.strip === "idle_still" && !s.perched && near < 4)) { console.log("FAIL reduced motion"); process.exitCode = 1; }
 });
 // destroy cleans up
 await run("destroy", {}, { size: 34 }, async (p) => {

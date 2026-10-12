@@ -10,3 +10,5 @@ try {
 }
 
 export const launch = (opts = {}) => chromium.launch({ channel: "chrome", ...opts });
+
+export { chromium };

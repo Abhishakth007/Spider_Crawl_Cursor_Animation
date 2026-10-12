@@ -1,7 +1,7 @@
 {
   "name": "spider-crawl-cursor",
-  "version": "1.0.1",
-  "description": "A spider that follows your cursor. Rendered in Blender, walks like a real one: eight legs in two alternating teams, arcing turns, a body that bends, and it settles on the pointer when you stop. One script tag.",
+  "version": "1.1.0",
+  "description": "A spider that follows your cursor. Rendered in Blender, walks like a real one: eight legs in two alternating teams, arcing turns, a body that bends, and it settles on the pointer when you stop. One script tag, and it costs the page almost nothing while it stands.",
   "keywords": [
     "cursor",
     "spider",
@@ -46,6 +46,7 @@
     "spider-cursor.cjs",
     "spider-cursor.d.ts",
     "assets/",
+    "assets-lite/",
     "README.md",
     "LICENSE"
   ],
@@ -53,7 +54,7 @@
   "scripts": {
     "build": "node build.mjs",
     "prepublishOnly": "node build.mjs",
-    "test": "node test/behaviour.mjs && node test/jiggle.mjs && node test/chase.mjs && node test/api.mjs && node test/install.mjs"
+    "test": "node test/behaviour.mjs && node test/jiggle.mjs && node test/chase.mjs && node test/api.mjs && node test/install.mjs && node test/policy.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",

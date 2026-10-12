@@ -10,20 +10,21 @@
  *   - If the pointer sits still, the spider walks the last of the way in and settles on it. While it sits there the
  *     system arrow is hidden (the spider is the cursor); the moment the pointer moves, the arrow comes back and the
  *     spider is a separate animal again.
- *   - Standing, it breathes, its palps twitch, and now and then it waves a front leg, taps a back one or grooms its fangs.
+ *   - Standing, it holds still, as a spider does, and now and then it waves a front leg, taps a back one or grooms its fangs
+ *     (with its breathing and palp twitches), and the page does no work for it in between.
  *
  * Use it (any one of these):
  *
- *   <script src="https://cdn.jsdelivr.net/npm/spider-crawl-cursor"></script>              one line, nothing to host
- *   <script src="spider-cursor.js" data-size="40"></script>                                  your own copy of the folder
+ *   <script src="https://cdn.jsdelivr.net/npm/spider-crawl-cursor@1/spider-cursor.min.js"></script>   one line, nothing to host
+ *   <script src="spider-cursor.js" data-size="40"></script>                                            your own copy of the folder
  *   <script src="spider-cursor.js"></script>
- *   <script>SpiderCursor.create({ size: 40 });</script>                                      or start it yourself
- *   import SpiderCursor from "spider-crawl-cursor";  SpiderCursor.create({ size: 40 });      with a bundler (sprites come from the CDN)
+ *   <script>SpiderCursor.create({ size: 40 });</script>                                                or start it yourself
+ *   import SpiderCursor from "spider-crawl-cursor";  SpiderCursor.create({ size: 40 });                with a bundler (sprites from the CDN)
  *
  * The script starts itself when it is loaded with a <script> tag. If you call create() yourself it does not start twice;
  * add data-manual to switch the automatic start off (for example when you inject the script from your own code).
  *
- * Options (as create({...}) or, in a script tag, as data-size, data-speed ...)
+ * Options (as create({...}) or, in a script tag, as data-size, data-speed, data-quality ...)
  *   src        folder with the sprite sheets (assets/<size>/<strip>.webp)                     default: the assets/ folder next to
  *                                                                                              this script, or the CDN copy
  *   size       body length of the spider in CSS px, head to abdomen (the legs reach about 1.8x) default 34
@@ -32,15 +33,23 @@
  *   standoff   how far short of a moving pointer it stops, in body lengths                     default 0.7
  *   spawn      "edge": comes in from the nearest edge of the window (starting no further than    default "edge"
  *              about 7 body lengths from the pointer, so there is something to see at once); "pointer": starts on it
- *   fidget     now and then waves, taps or grooms while standing                               default true
+ *   quality    "full": every sprite size and every gait; "lite": about a fifth of the data and   default "auto"
+ *              memory, fewer frames and gaits, softer on a retina screen; "auto": full, unless the
+ *              browser asks to save data, is on a slow connection, or reports little memory
+ *   motion     "auto" (honours reduced motion), "full", "reduced" (one still frame), or "off"   default "auto"
+ *   fidget     now and then, while it stands: a wave, a tap or a groom. false makes it         default "auto" (on with full quality)
+ *              perfectly still
+ *   preload    on a desktop, fetch the two sheets it needs as soon as the page is idle           default true
+ *   prefetch   after it appears, quietly fetch the curved-walk sheets within the memory budget    default true
+ *   cacheBytes decoded-image memory budget, including images still being decoded                  default 32 MiB
+ *   liteSrc    folder for the lite sheets (found beside src when src ends in assets/)             default inferred
  *   shadow     a soft drop shadow                                                              default true
  *   touch      also for touch input                                                            default false
  *   minWidth   do nothing on windows narrower than this many px                                default 0
  *   manifest   read manifest.json from src instead of the copy built into this file (only      default false
  *              needed if you repacked the sheets with other sizes)
  *   zIndex                                                                                     default 2147483647
- * Only one size of sprite is ever downloaded. A desktop browser fetches the two sheets it needs as soon as the page is idle,
- * so the spider is there the moment the mouse first moves; a phone (no mouse) downloads nothing at all.
+ * Only one size of sprite is ever downloaded, and a phone (no mouse) downloads nothing at all.
  * Returns { destroy(), set(opts), setSize(px), show(), hide(), position(), state() }.
  */
 (function (root, factory) {
@@ -49,7 +58,7 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var VERSION = "1.0.1";                              // the build step puts the package version here
+  var VERSION = "1.1.0";                              // the build step puts the package version here
   // Where this script was loaded from, read now, while it is running. The sprites live in assets/ beside it, so a page that
   // loads it from anywhere (a CDN, another site, a sub-folder) finds them without being told. The bundler builds blank this.
   var SELF = "";
@@ -63,8 +72,9 @@
   }
   var created = 0;
 
-  // what the renders were made with (pack.py rewrites this from the Blender run); this copy is what the page uses unless it asks for manifest.json
-  var META = /*META*/{"frame_px":768,"frame_bu":340.0,"elev":76.0,"pivot_bu":[0.0,-2.0,0.0],"stride_bu":84.0,"turn_deg":48.00000000000001,"beta":0.6,"counts":{"walk0":32,"walk18":32,"walk34":32,"walk50":32,"walk70":32,"pivot":32,"idle_calm":48,"idle_wave":60,"idle_tap":44,"idle_groom":52},"walks":{"walk0":0.0,"walk18":18.0,"walk34":34.0,"walk50":50.0,"walk70":70.0,"pivot":90.0},"head_bu":34.0,"body_bu":136.0,"span_bu":244.0,"cols":8,"tiers":[64,96,128,192,256],"format":"webp"}/*ENDMETA*/;
+  // what the renders were made with (pack.py rewrites these from the Blender run); this copy is what the page uses unless it asks for manifest.json
+  var META = /*META*/{"frame_px":768,"frame_bu":340.0,"elev":76.0,"pivot_bu":[0.0,-2.0,0.0],"stride_bu":84.0,"turn_deg":48.00000000000001,"beta":0.6,"counts":{"walk0":32,"walk18":32,"walk34":32,"walk50":32,"walk70":32,"pivot":32,"idle_calm":48,"idle_wave":60,"idle_tap":44,"idle_groom":52},"walks":{"walk0":0.0,"walk18":18.0,"walk34":34.0,"walk50":50.0,"walk70":70.0,"pivot":90.0},"head_bu":34.0,"body_bu":136.0,"span_bu":244.0,"cols":8,"tiers":[64,96,128,192,256],"format":"webp","profile":"full"}/*ENDMETA*/;
+  var LITE_META = /*LITEMETA*/{"frame_px":768,"frame_bu":340.0,"elev":76.0,"pivot_bu":[0.0,-2.0,0.0],"stride_bu":84.0,"turn_deg":48.00000000000001,"beta":0.6,"counts":{"walk0":16,"walk34":16,"pivot":16,"idle_calm":12,"idle_still":1},"walks":{"walk0":0.0,"walk34":34.0,"pivot":90.0},"head_bu":34.0,"body_bu":136.0,"span_bu":244.0,"cols":8,"tiers":[64,96,128],"format":"webp","profile":"lite"}/*ENDLITEMETA*/;
   var COLS = 8;
   var STRIP_STEP = [0, 18, 34, 50, 70, 90];               // the gait strips, by how sharply they turn: 0 walks straight, 90 pivots
   var STRIP_NAME = { 0: "walk0", 18: "walk18", 34: "walk34", 50: "walk50", 70: "walk70", 90: "pivot" };
@@ -76,17 +86,56 @@
   var wrap = function (a) { return Math.atan2(Math.sin(a), Math.cos(a)); };
   var clamp = function (v, a, b) { return v < a ? a : v > b ? b : v; };
   var rand = function (a, b) { return a + Math.random() * (b - a); };
+  var cursorOwners = new Set(), cursorStyle = null, cursorSheet = null, cursorUsers = 0;
+  // Hiding the arrow while a spider sits on it: a constructed stylesheet, which a strict Content-Security-Policy allows
+  // (a <style> element it may not), with the element as the fallback for older browsers. Shared by every instance.
+  var CURSOR_CSS = "html[data-spider-perched], html[data-spider-perched] * { cursor: none !important; }";
+  function retainCursorStyle() {
+    cursorUsers++;
+    if (cursorSheet || cursorStyle) return;
+    try { cursorSheet = new CSSStyleSheet(); cursorSheet.replaceSync(CURSOR_CSS); document.adoptedStyleSheets = document.adoptedStyleSheets.concat(cursorSheet); }
+    catch (e) { cursorSheet = null; cursorStyle = document.createElement("style"); cursorStyle.textContent = CURSOR_CSS; document.head.appendChild(cursorStyle); }
+  }
+  function setCursorOwner(owner, on) {
+    if (on) cursorOwners.add(owner); else cursorOwners.delete(owner);
+    if (cursorOwners.size) document.documentElement.setAttribute("data-spider-perched", "");
+    else document.documentElement.removeAttribute("data-spider-perched");
+  }
+  function releaseCursorStyle(owner) {
+    setCursorOwner(owner, false);
+    cursorUsers--;
+    if (cursorUsers <= 0) {
+      if (cursorStyle) { cursorStyle.remove(); cursorStyle = null; }
+      if (cursorSheet) { var gone = cursorSheet; document.adoptedStyleSheets = document.adoptedStyleSheets.filter(function (x) { return x !== gone; }); cursorSheet = null; }
+      cursorUsers = 0;
+    }
+  }
 
   function create(opts) {
-    opts = Object.assign({ src: defaultSrc(), size: 34, speed: 1, perch: true, standoff: 0.7, spawn: "edge", fidget: true, shadow: true,
-                           touch: false, minWidth: 0, manifest: false, zIndex: 2147483647, debug: false }, opts || {});
+    opts = Object.assign({ src: defaultSrc(), liteSrc: null, size: 34, speed: 1, perch: true, standoff: 0.7, spawn: "edge", fidget: "auto", shadow: true,
+                           touch: false, quality: "auto", motion: "auto", cacheBytes: 32 * 1024 * 1024, preload: true, prefetch: true, minWidth: 0,
+                           manifest: false, zIndex: 2147483647, debug: false }, opts || {});
     created++;
     if (typeof window === "undefined" || (opts.minWidth && window.innerWidth < opts.minWidth)) {
       var no = function () {};
       return { destroy: no, set: no, setSize: no, show: no, hide: no, position: function () { return { x: -1, y: -1, head: { x: -1, y: -1 } }; }, state: function () { return { ready: false }; } };
     }
-    var reduce = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-    var dead = false, shown = true;
+    var motionMedia = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : null;
+    var dead = false, shown = true, pageVisible = !document.hidden, effectiveMotion, effectiveQuality, effectiveFidget;
+    // A browser that is asking to save data, is on a slow connection or reports little memory gets the lite sheets by default.
+    function lowEnd() {
+      var c = typeof navigator !== "undefined" && navigator.connection;
+      return !!((c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || ""))) || (typeof navigator !== "undefined" && navigator.deviceMemory && navigator.deviceMemory <= 2));
+    }
+    function resolvePolicy() {
+      effectiveMotion = opts.motion === "auto" ? (motionMedia && motionMedia.matches ? "reduced" : "full") : opts.motion;
+      effectiveQuality = effectiveMotion === "reduced" ? "lite" : (opts.quality === "auto" ? (lowEnd() ? "lite" : "full") : opts.quality);
+      if (effectiveQuality !== "full" && effectiveQuality !== "lite") effectiveQuality = "lite";
+      effectiveFidget = opts.fidget === true || (opts.fidget === "auto" && effectiveQuality === "full" && effectiveMotion === "full");
+    }
+    resolvePolicy();
+    // Runtime metadata is instance-local so a lite and full cursor can coexist safely.
+    var COLS = 8, STRIP_STEP = [], STRIP_NAME = {}, ARC_MAX = 0, SPECIALS = [];
 
     // ---- the canvas
     var cv = document.createElement("canvas");
@@ -96,42 +145,141 @@
     st.willChange = "transform"; st.opacity = "0"; st.transition = "opacity .25s";
     if (opts.shadow) st.filter = "drop-shadow(0 .6px .6px rgba(36,24,10,.38)) drop-shadow(.8px 2.4px 2.2px rgba(36,24,10,.20))";
     var g = cv.getContext("2d");
-    // hiding the arrow while the spider sits on it: a constructed stylesheet, which a strict Content-Security-Policy allows
-    // (a <style> element it may not), with the element as the fallback for older browsers
-    var PERCH_CSS = "html[data-spider-perched], html[data-spider-perched] * { cursor: none !important; }";
-    var perchSheet = null, perchStyle = null;
-    try { perchSheet = new CSSStyleSheet(); perchSheet.replaceSync(PERCH_CSS); document.adoptedStyleSheets = document.adoptedStyleSheets.concat(perchSheet); }
-    catch (e) { perchSheet = null; perchStyle = document.createElement("style"); perchStyle.textContent = PERCH_CSS; document.head.appendChild(perchStyle); }
+    var cursorOwner = {};
+    retainCursorStyle();
     document.body.appendChild(cv);
 
     // ---- what the renders were made with, and the sheets
-    var M = null, tier = 0, sheets = {}, loading = {}, ready = false;
+    var M = null, tier = 0, sheets = {}, loading = {}, ready = false, generation = 0, error = null;
+    var cache = new Map(), cacheBytes = 0, pendingBytes = 0, cacheTick = 0;
+    var optionalQueue = [], optionalByName = {}, optionalActive = null;
     var s = 1;                  // css px per Blender unit
     var frameCss = 0, dev = 0, dpr = 1;
     var D0 = 1, W0 = 1, HEAD = 0;
 
-    function base() { return opts.src.replace(/\/?$/, "/"); }
+    function fullBase() { return opts.src.replace(/\/?$/, "/"); }
+    function liteBase() { return (opts.liteSrc || (/assets\/?$/.test(opts.src) ? opts.src.replace(/assets\/?$/, "assets-lite/") : opts.src.replace(/\/?$/, "/") + "lite/")).replace(/\/?$/, "/"); }
+    function base() { return effectiveQuality === "lite" ? liteBase() : fullBase(); }
+    function configure(m) {
+      M = m; COLS = M.cols; STRIP_STEP = []; STRIP_NAME = {}; SPECIALS = [];
+      Object.keys(M.walks || {}).forEach(function (name) { var angle = +M.walks[name]; STRIP_STEP.push(angle); STRIP_NAME[angle] = name; });
+      STRIP_STEP.sort(function (a, b) { return a - b; });
+      // the sharpest turn it makes while there is room to walk: an arc about a body length across (50 degrees of gait), or the sharpest
+      // gentler gait there is (the lite sheets have 0, 34 and 90). Not the sharpest sheet there is: 70 is nearly a spin on the spot.
+      var nonPivot = STRIP_STEP.filter(function (angle) { return angle < 90 && angle <= 50; }); ARC_MAX = nonPivot.length ? nonPivot[nonPivot.length - 1] : 0;
+      Object.keys(M.counts || {}).forEach(function (name) { if (/^idle_/.test(name) && name !== "idle_calm" && name !== "idle_still") SPECIALS.push(name); });
+    }
     function pickTier() {
       var want = frameCss * dpr, best = 0;
       var t = M.tiers.slice().sort(function (a, b) { return a - b; });
       for (var i = 0; i < t.length; i++) if (t[i] >= want * 0.9) { best = t[i]; break; }
       return best || t[t.length - 1];
     }
-    function loadStrip(name) {
-      if (sheets[name] || loading[name]) return loading[name];
-      var T = tier;
-      loading[name] = new Promise(function (res) {
-        var im = new Image();
-        im.onload = function () { if (T === tier) sheets[name] = im; delete loading[name]; res(im); };
-        im.onerror = function () { delete loading[name]; res(null); };
-        im.src = base() + T + "/" + name + "." + M.format;
+    function estimateBytes(name, T) { return Math.ceil(M.counts[name] / COLS) * COLS * T * T * 4; }
+    function minimumWorkingSetBytes() {
+      if (!M || !tier) return 0;
+      var critical = effectiveMotion === "reduced" ? ["idle_still"] : ["walk0", "idle_calm"];
+      var total = critical.reduce(function (sum, name) { return sum + (M.counts[name] ? estimateBytes(name, tier) : 0); }, 0);
+      var optional = Object.keys(M.counts).filter(function (name) { return critical.indexOf(name) < 0; });
+      var largestSingle = optional.reduce(function (largest, name) { return Math.max(largest, estimateBytes(name, tier)); }, 0);
+      var largestGait = Object.keys(M.walks || {}).filter(function (name) { return critical.indexOf(name) < 0; })
+        .reduce(function (largest, name) { return Math.max(largest, estimateBytes(name, tier)); }, 0);
+      // One full idle special, or two gait strips during a cross-fade, can be pinned at once.
+      return total + Math.max(largestSingle, largestGait * 2);
+    }
+    function effectiveCacheLimit() { return Math.max(opts.cacheBytes, minimumWorkingSetBytes()); }
+    function isCriticalStrip(name) { return effectiveMotion === "reduced" ? name === "idle_still" : name === "walk0" || name === "idle_calm"; }
+    function trimCache(extraBytes) {
+      extraBytes = extraBytes || 0;
+      while (cacheBytes + pendingBytes + extraBytes > effectiveCacheLimit()) {
+        var victimKey = null, victim = null;
+        cache.forEach(function (entry, key) { if (!Object.values(sheets).includes(entry.image) && (!victim || entry.used < victim.used)) { victim = entry; victimKey = key; } });
+        if (!victim) break;
+        cache.delete(victimKey); cacheBytes -= victim.bytes; if (victim.image && victim.image.close) victim.image.close();
+      }
+    }
+    function cancelLoads() {
+      optionalQueue.forEach(function (entry) { entry.cancelled = true; entry.resolve(null); }); optionalQueue = [];
+      if (optionalActive) { optionalActive.cancelled = true; optionalActive.resolve(null); optionalActive = null; }
+      optionalByName = {};
+      Object.keys(loading).forEach(function (name) {
+        var job = loading[name]; job.cancelled = true;
+        if (job.counted) { pendingBytes -= job.bytes; job.counted = false; }
+        job.resolve(null); delete loading[name];
+        // A decode already handed to the browser cannot be synchronously cancelled. Detach its
+        // network source; the generation check below prevents a late decode from being published.
+        if (job.image && !job.image.complete) job.image.src = "";
       });
-      return loading[name];
+    }
+    function startStripLoad(name) {
+      if (!M || !M.counts[name]) return Promise.resolve(null);
+      if (sheets[name]) return Promise.resolve(sheets[name]);
+      if (loading[name]) return loading[name].promise;
+      var T = tier, selectedGeneration = generation, url = base() + T + "/" + name + "." + M.format, cached = cache.get(url);
+      if (cached) { cached.used = ++cacheTick; sheets[name] = cached.image; return Promise.resolve(cached.image); }
+      var bytes = estimateBytes(name, T), resolveJob;
+      var job = { image: new Image(), bytes: bytes, counted: true, cancelled: false, resolve: null, promise: null };
+      trimCache(bytes); pendingBytes += bytes;
+      job.promise = new Promise(function (resolve) { resolveJob = resolve; job.resolve = resolve; }); loading[name] = job;
+      job.image.decoding = "async";
+      job.image.onload = function () {
+        var decoded = typeof job.image.decode === "function" ? job.image.decode().catch(function () {}) : Promise.resolve();
+        decoded.then(function () {
+          if (job.counted) { pendingBytes -= bytes; job.counted = false; }
+          if (loading[name] === job) delete loading[name];
+          if (dead || job.cancelled || selectedGeneration !== generation || T !== tier) { job.image.src = ""; resolveJob(null); return; }
+          cache.set(url, { image: job.image, bytes: bytes, used: ++cacheTick }); cacheBytes += bytes; sheets[name] = job.image; trimCache(); resolveJob(job.image);
+        });
+      };
+      job.image.onerror = function () { if (job.counted) { pendingBytes -= bytes; job.counted = false; } if (loading[name] === job) delete loading[name]; if (!job.cancelled) error = "Could not load " + url; resolveJob(null); };
+      job.image.src = url; return job.promise;
+    }
+    function pumpOptional() {
+      if (optionalActive || dead || !shown || !pageVisible || !M || !tier) return;
+      while (optionalQueue.length) {
+        var entry = optionalQueue[0];
+        if (entry.cancelled || entry.generation !== generation || entry.tier !== tier) {
+          optionalQueue.shift(); if (optionalByName[entry.name] === entry) delete optionalByName[entry.name]; entry.resolve(null); continue;
+        }
+        var bytes = estimateBytes(entry.name, tier); trimCache(bytes);
+        if (cacheBytes + pendingBytes + bytes > effectiveCacheLimit()) return;
+        optionalQueue.shift(); optionalActive = entry;
+        startStripLoad(entry.name).then(function (image) {
+          var completed = entry;
+          if (optionalActive === completed) optionalActive = null;
+          if (optionalByName[completed.name] === completed) delete optionalByName[completed.name];
+          completed.resolve(completed.cancelled ? null : image); pumpOptional();
+        });
+        return;
+      }
+    }
+    function loadStrip(name) {
+      if (!M || !M.counts[name]) return Promise.resolve(null);
+      if (sheets[name] || loading[name] || isCriticalStrip(name)) return startStripLoad(name);
+      var existing = optionalByName[name]; if (existing) return existing.promise;
+      var resolveEntry, entry = { name: name, generation: generation, tier: tier, cancelled: false, resolve: null, promise: null };
+      entry.promise = new Promise(function (resolve) { resolveEntry = resolve; entry.resolve = resolve; });
+      optionalByName[name] = entry; optionalQueue.push(entry); pumpOptional(); return entry.promise;
+    }
+    // Once it has appeared, quietly fetch the sheets it will want for turning, one at a time and within the memory budget, so the
+    // first turn of the session does not wait for the network. (Decoded images live in the cache; a sheet is only pinned while drawn.)
+    var prefetched = "";
+    function prefetch() {
+      var key = generation + "/" + tier;
+      if (!opts.prefetch || !M || !ready || !seen || !shown || effectiveMotion !== "full" || prefetched === key) return;
+      prefetched = key;
+      ["walk34", "walk50", "walk18", "pivot", "walk70"].forEach(function (name) { if (M.counts[name]) loadStrip(name); });
+    }
+    function ensureCritical() {
+      if (!M || !tier || dead || !shown || !pageVisible || effectiveMotion === "off") return;
+      var required = effectiveMotion === "reduced" ? ["idle_still"] : ["walk0", "idle_calm"], selectedGeneration = generation, selectedTier = tier;
+      strip = idleStrip = effectiveMotion === "reduced" ? "idle_still" : "idle_calm";
+      Promise.all(required.map(loadStrip)).then(function (images) { if (selectedGeneration === generation && selectedTier === tier && images.every(Boolean)) { ready = true; dirty = true; if (seen && !spawned) spawn(); if (seen) st.opacity = "1"; wake(); prefetch(); } });
     }
     function setSize(px) {
       opts.size = px;
       if (!M) return;
-      dpr = Math.min(window.devicePixelRatio || 1, 3);
+      dpr = Math.min(window.devicePixelRatio || 1, effectiveQuality === "lite" ? 2 : 3);
       s = px / M.body_bu;
       frameCss = M.frame_bu * s;
       dev = Math.max(2, Math.round(frameCss * dpr));
@@ -143,14 +291,11 @@
       HEAD = M.head_bu * Math.sin(M.elev * Math.PI / 180) * s;
       var t = pickTier();
       if (t !== tier) {
-        tier = t; sheets = {}; loading = {}; ready = false;
-        Promise.all([loadStrip("walk0"), loadStrip("idle_calm")]).then(function () { if (t === tier) { ready = true; dirty = true; } });
-        if (spawned) loadRest();
+        generation++; cancelLoads(); tier = t; sheets = {}; ready = false;
+        ensureCritical();
       }
       dirty = true;
     }
-    // the curves, the pivot and the fidgets are not needed until it has appeared and started to walk
-    function loadRest() { ["walk18", "walk34", "walk50", "walk70", "pivot", "idle_wave", "idle_tap", "idle_groom"].forEach(loadStrip); }
 
     // ---- state. Positions are the spider's pivot (the middle of its feet); heading 0 faces up the screen, + is clockwise
     var X = -999, Y = -999, th = 0, v = 0, w = 0, phase = 0;
@@ -165,9 +310,8 @@
 
     function spawn() {
       spawned = true;
-      loadRest();
       var t0 = performance.now();
-      if (opts.spawn === "pointer") { th = 0; X = px; Y = py + HEAD; mode = "idle"; perched = false; nextFidget = t0 + 3000; return; }
+      if (effectiveMotion === "reduced" || opts.spawn === "pointer") { th = 0; X = px; Y = py + HEAD; mode = "idle"; setPerched(false); nextFidget = t0 + 3000; return; }
       var W = innerWidth, H = innerHeight, m = frameCss * 0.55;
       var d = [px, W - px, py, H - py], k = d.indexOf(Math.min.apply(null, d));
       if (k === 0) { X = -m; Y = clamp(py, 0, H); } else if (k === 1) { X = W + m; Y = clamp(py, 0, H); }
@@ -185,19 +329,23 @@
       if (!inputOk || (e.pointerType === "touch" && !opts.touch)) return;
       var now = performance.now();
       px = e.clientX; py = e.clientY;
-      if (!seen) { seen = true; anchorX = px; anchorY = py; lastMove = now; boot(); if (M) { spawn(); st.opacity = "1"; } }
+      if (!seen) { seen = true; anchorX = px; anchorY = py; lastMove = now; if (M) { spawn(); st.opacity = "1"; } }
+      beginAssets(); prefetch();
       if (Math.hypot(px - anchorX, py - anchorY) > 2.5) { anchorX = px; anchorY = py; lastMove = now; }
       if (perched && Math.hypot(px - perchX, py - perchY) > 2.5) setPerched(false);
+      if (effectiveMotion === "reduced" && M) { if (!spawned) spawn(); X = px; Y = py + HEAD; dirty = true; }
+      wake();
     }
     var perchX = 0, perchY = 0;
     function setPerched(on) {
+      if (effectiveMotion !== "full") on = false;
       if (on === perched) return;
       perched = on;
       if (on) { perchX = px; perchY = py; }
-      if (opts.perch) { if (on) document.documentElement.setAttribute("data-spider-perched", ""); else document.documentElement.removeAttribute("data-spider-perched"); }
+      if (opts.perch) setCursorOwner(cursorOwner, on); else setCursorOwner(cursorOwner, false);
     }
-    function onDown() { pressed = 1; pressT = performance.now(); dirty = true; }
-    function onUp() { pressed = 0; dirty = true; }
+    function onDown() { pressed = 1; pressT = performance.now(); dirty = true; wake(); }
+    function onUp() { pressed = 0; dirty = true; wake(); }
     var opt = { passive: true, capture: true };
     window.addEventListener("pointermove", onMove, opt);
     window.addEventListener("pointerdown", onDown, opt);
@@ -207,6 +355,7 @@
     var F_CRUISE = 3.0, A_UP = 320, A_DOWN = 520, A_TURN = 8, MIN_F = 0.85;
     var DEG = Math.PI / 180;
     function step(dt, now) {
+      if (effectiveMotion === "reduced") { strip = idleStrip = "idle_still"; mode = "idle"; setPerched(false); return; }
       var hd = head(), dxp = px - hd.x, dyp = py - hd.y, dist = Math.hypot(dxp, dyp);
       // steer from the pivot, not from the head: turning on the spot moves the head round a circle, and a target inside that
       // circle (a pointer jiggled a few pixels) would be chased for ever. A pointer under the body counts as arrived.
@@ -214,7 +363,7 @@
       var active = now - lastMove < 650;
       var E = active ? opts.standoff * opts.size : 0;
       if (enterUntil && dist < 3 * opts.size) enterUntil = 0;           // the scuttle in is over the first time it gets near the pointer
-      var speedK = opts.speed * (reduce ? 0.6 : 1) * (!reduce && now < enterUntil ? 1.6 : 1);   // a quick scuttle in, then the crawl
+      var speedK = opts.speed * (now < enterUntil ? 1.6 : 1);           // a quick scuttle in, then the crawl
       var goal = !under && dist > (active ? E + 2 : 3.5);
       var vd = 0, wd = 0, e = 0;
       if (goal && spawned) {
@@ -265,22 +414,25 @@
           phase = Math.floor(phase * 2) / 2; idleMirror = Math.round(phase * 2) % 2 === 1; mode = "idle"; idleT = 0; idleStrip = "idle_calm"; nextFidget = now + rand(2500, 6000); stripAngle = 0;
         }
         phase -= Math.floor(phase);
-        if (mode !== "idle") { strip = STRIP_NAME[stripAngle]; mirror = stripAngle > 0 && turnSign > 0; }
+        if (mode !== "idle") { strip = STRIP_NAME[stripAngle]; mirror = stripAngle > 0 && turnSign > 0; if (!sheets[strip]) loadStrip(strip).then(wake); }
       }
-      // ---- standing: breathe, and now and then do something
+      // ---- standing: still, as a spider is, and now and then it does something (a wave, a tap, a groom: each has its breathing and
+      // palp twitches in it). Between fidgets nothing changes, so nothing is drawn and the page does no work for it at all.
       if (mode === "idle") {
         strip = idleStrip; mirror = idleMirror;
-        var count = M.counts[idleStrip];
-        idleT += dt * 24;
-        if (idleT >= count) {
-          idleT -= count;
-          if (idleStrip !== "idle_calm") { idleStrip = "idle_calm"; nextFidget = now + rand(3500, 9000); }
-          else if (opts.fidget && !reduce && now > nextFidget && sheets[SPECIALS[0]]) {
-            idleStrip = SPECIALS[Math.floor(Math.random() * SPECIALS.length)];
-            if (!sheets[idleStrip]) idleStrip = "idle_calm";
+        if (idleStrip === "idle_calm") {
+          idleT = 0;
+          if (effectiveFidget && SPECIALS.length && now > nextFidget) {
+            var chosen = SPECIALS[Math.floor(Math.random() * SPECIALS.length)];
+            nextFidget = now + 4000;                       // if its sheet is still arriving, try again shortly rather than every frame
+            if (sheets[chosen]) { idleStrip = chosen; idleT = 0; }
+            else loadStrip(chosen).then(function () { if (!dead && mode === "idle" && idleStrip === "idle_calm") { idleStrip = chosen; idleT = 0; wake(); } });
           }
-          strip = idleStrip;
+        } else {
+          idleT += dt * 24;                                // the loops are made at 24 fps
+          if (idleT >= M.counts[idleStrip]) { idleStrip = "idle_calm"; idleT = 0; nextFidget = now + rand(7000, 16000); }
         }
+        strip = idleStrip;
       }
 
       // ---- arrived: settle on the pointer
@@ -290,13 +442,13 @@
 
     // ---- drawing
     function spec() {
-      var n = M.counts[strip], i;
+      var n = M.counts[strip] || 1, i;
       if (mode === "idle") i = Math.min(n - 1, Math.floor(idleT));
       else { var ph = phase + (mirror ? 0.5 : 0); i = Math.floor((ph - Math.floor(ph)) * n) % n; }
       return { strip: strip, i: i, mirror: mirror };
     }
     function blit(sp, alpha) {
-      var im = sheets[sp.strip] || sheets.walk0 || sheets.idle_calm;
+      var im = sheets[sp.strip] || sheets.walk0 || sheets.idle_calm || sheets.idle_still;
       if (!im) return;
       var T = tier, i = sp.i;
       g.save();
@@ -321,8 +473,11 @@
       offX = gx - ix; offY = gy - iy;
       cv.style.transform = "translate3d(" + (ix / dpr) + "px," + (iy / dpr) + "px,0)";
       var key = sp.strip + sp.i + sp.mirror + th.toFixed(3) + pressedAmt.toFixed(2) + offX.toFixed(2) + offY.toFixed(2) + (fade ? "f" + fade.t.toFixed(2) : "");
+      var keep = ["walk0", "idle_calm", "idle_still", sp.strip]; if (fade) keep.push(fade.from.strip);
+      Object.keys(sheets).forEach(function (name) { if (keep.indexOf(name) < 0) delete sheets[name]; }); trimCache(); pumpOptional();
       if (key === lastKey && !dirty) return;
       lastKey = key; dirty = false;
+      metrics.draws++;
       g.setTransform(1, 0, 0, 1, 0, 0);
       g.globalCompositeOperation = "source-over";
       g.clearRect(0, 0, dev, dev);
@@ -333,61 +488,91 @@
       } else blit(sp, 1);
     }
 
-    var raf = 0;
-    function frame(now) {
+    var raf = 0, wakeTimer = 0, metrics = { rafTicks: 0, draws: 0 };
+    function stopLoop() { if (raf) cancelAnimationFrame(raf); raf = 0; if (wakeTimer) clearTimeout(wakeTimer); wakeTimer = 0; }
+    function wake(delay) {
+      if (dead || !shown || !pageVisible || effectiveMotion === "off") return;
+      if (delay > 0) { if (!wakeTimer) wakeTimer = setTimeout(function () { wakeTimer = 0; wake(); }, delay); return; }
+      if (wakeTimer) { clearTimeout(wakeTimer); wakeTimer = 0; }
+      if (raf) return;
+      var t = performance.now();
+      if (t - lastT > 150) lastT = t;                  // after a long quiet, do not count the quiet as one big step
       raf = requestAnimationFrame(frame);
+    }
+    function frame(now) {
+      raf = 0;
+      metrics.rafTicks++;
       var dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
-      if (!ready || !seen || !shown) return;
+      if (!ready || !seen || !shown || !pageVisible || effectiveMotion === "off") return;
       if (!spawned) { spawn(); st.opacity = "1"; }
       step(dt, now);
       draw(dt);
       if (opts.debug) window.__spider = api.state();
+      if (effectiveMotion === "reduced") return;
+      if (mode !== "idle" || Math.abs(v) > 0.01 || Math.abs(w) > 0.002 || fade || Math.abs(pressedAmt - pressed) > 0.01) { raf = requestAnimationFrame(frame); return; }
+      var settleDelay = 660 - (now - lastMove);
+      if (!perched && settleDelay > 0) { wake(settleDelay); return; }
+      // A fidget is playing: tick at its own 24 fps, not at the display's rate (60 to 144). Standing still: sleep until the next
+      // one is due. With fidget off nothing is scheduled at all: the page does no work for the spider until the pointer moves.
+      if (effectiveFidget && idleStrip !== "idle_calm") { wake(30); return; }
+      if (effectiveFidget && SPECIALS.length) wake(Math.max(50, nextFidget - now));
     }
 
-    // ---- start. The two sheets it needs are fetched as soon as the page is idle on a machine with a mouse (so the spider is
-    // there the moment the mouse first moves); a phone, or any page nobody touches with a mouse, downloads nothing.
+    // ---- start
     var onResize = function () { setSize(opts.size); };
-    var prepared = false, booted = false;
-    function prepare() {
-      if (prepared || dead) return;
-      prepared = true;
-      window.addEventListener("resize", onResize);
-      var metaP = opts.manifest && typeof fetch === "function" && location.protocol !== "file:"
-        ? fetch(base() + "manifest.json").then(function (r) { if (!r.ok) throw 0; return r.json(); }).catch(function () { return META; })
-        : Promise.resolve(META);
+    window.addEventListener("resize", onResize);
+    var assetsStarted = false, metaP = null, manifestController = null;
+    function suspendPending() {
+      stopLoop(); generation++; cancelLoads();
+      if (manifestController) manifestController.abort();
+      if (!M) assetsStarted = false;
+    }
+    var onVisibility = function () {
+      pageVisible = !document.hidden;
+      if (!pageVisible) suspendPending();
+      else if (seen && shown) { if (!M) beginAssets(); else { if (!ready) ensureCritical(); wake(); } }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    function beginAssets(early) {
+      if (assetsStarted || dead || !shown || !pageVisible || effectiveMotion === "off" || (!seen && !early)) return;
+      assetsStarted = true; var selectedGeneration = generation;
+      manifestController = new AbortController();
+      metaP = opts.manifest && typeof fetch === "function" && location.protocol !== "file:" ? fetch(base() + "manifest.json", { signal: manifestController.signal, cache: "force-cache" }).then(function (r) { if (!r.ok) throw new Error("manifest " + r.status); return r.json(); }).catch(function (manifestError) { if (manifestError.name === "AbortError") throw manifestError; return effectiveQuality === "lite" ? LITE_META : META; }) : Promise.resolve(effectiveQuality === "lite" ? LITE_META : META);
       metaP.then(function (m) {
-        if (dead) return;
-        M = m; setSize(opts.size);
+        if (dead || selectedGeneration !== generation || manifestController.signal.aborted) return;
+        configure(m); setSize(opts.size);
         if (seen && !spawned) { spawn(); st.opacity = "1"; }
-      }).catch(function (err) { console.error("spider-cursor:", err); });
+      }).catch(function (err) { if (err.name !== "AbortError") error = err.message || String(err); });
     }
-    function boot() {
-      prepare();
-      if (booted || dead) return;
-      booted = true;
-      lastT = performance.now();
-      raf = requestAnimationFrame(frame);
+    function reconfigure() {
+      setPerched(false); generation++; cancelLoads(); if (manifestController) manifestController.abort();
+      assetsStarted = false; M = null; tier = 0; sheets = {}; ready = false; spawned = false; stopLoop(); resolvePolicy();
+      if (effectiveMotion === "off") st.opacity = "0"; else if (seen && shown && pageVisible) beginAssets();
     }
-    if (typeof matchMedia === "function" && matchMedia("(hover: hover) and (pointer: fine)").matches) {
-      (window.requestIdleCallback || function (f) { return setTimeout(f, 250); })(prepare, { timeout: 2500 });
+    var onMotionChange = function () { if (opts.motion === "auto") reconfigure(); };
+    if (motionMedia) { if (motionMedia.addEventListener) motionMedia.addEventListener("change", onMotionChange); else if (motionMedia.addListener) motionMedia.addListener(onMotionChange); }
+    // On a machine with a mouse, fetch the two sheets it needs as soon as the page is idle, so the spider is there the moment the
+    // mouse first moves. Nothing runs and nothing is drawn until then; a phone, or any page nobody touches with a mouse, downloads nothing.
+    if (opts.preload && typeof matchMedia === "function" && matchMedia("(hover: hover) and (pointer: fine)").matches) {
+      (window.requestIdleCallback || function (f) { return setTimeout(f, 250); })(function () { beginAssets(true); }, { timeout: 2500 });
     }
 
     var api = {
       destroy: function () {
-        dead = true; cancelAnimationFrame(raf);
+        if (dead) return;
+        dead = true; stopLoop(); generation++; cancelLoads(); if (manifestController) manifestController.abort();
         window.removeEventListener("pointermove", onMove, opt); window.removeEventListener("pointerdown", onDown, opt);
-        window.removeEventListener("pointerup", onUp, opt); window.removeEventListener("resize", onResize);
-        document.documentElement.removeAttribute("data-spider-perched");
+        window.removeEventListener("pointerup", onUp, opt); window.removeEventListener("resize", onResize); document.removeEventListener("visibilitychange", onVisibility);
+        if (motionMedia) { if (motionMedia.removeEventListener) motionMedia.removeEventListener("change", onMotionChange); else if (motionMedia.removeListener) motionMedia.removeListener(onMotionChange); }
+        releaseCursorStyle(cursorOwner);
         cv.remove();
-        if (perchStyle) perchStyle.remove();
-        if (perchSheet) document.adoptedStyleSheets = document.adoptedStyleSheets.filter(function (x) { return x !== perchSheet; });
       },
       setSize: setSize,
-      set: function (o) { if (o.size) setSize(o.size); Object.keys(o).forEach(function (k) { if (k !== "size") opts[k] = o[k]; }); },
-      show: function () { shown = true; inputOk = true; if (seen) st.opacity = "1"; },
-      hide: function () { shown = false; inputOk = false; st.opacity = "0"; setPerched(false); },
+      set: function (o) { var policy = false; o = o || {}; Object.keys(o).forEach(function (k) { if (["quality", "motion", "src", "liteSrc", "cacheBytes"].indexOf(k) >= 0 && opts[k] !== o[k]) policy = true; opts[k] = o[k]; }); if (o.fidget !== undefined) resolvePolicy(); if (o.size) setSize(o.size); if (policy) reconfigure(); else wake(); },
+      show: function () { shown = true; inputOk = true; if (seen) { if (!M) beginAssets(); else if (!ready) ensureCritical(); if (ready) st.opacity = "1"; } wake(); },
+      hide: function () { shown = false; inputOk = false; st.opacity = "0"; setPerched(false); suspendPending(); },
       position: function () { return { x: X, y: Y, head: head() }; },
-      state: function () { return { x: X, y: Y, heading: th, v: v, w: w, mode: mode, strip: strip, mirror: mirror, phase: phase, perched: perched, tier: tier, ready: ready, idle: idleStrip, stripAngle: stripAngle, frame: lastSpec && lastSpec.i }; },
+      state: function () { return { x: X, y: Y, heading: th, v: v, w: w, mode: mode, strip: strip, mirror: mirror, phase: phase, perched: perched, tier: tier, ready: ready, idle: idleStrip, stripAngle: stripAngle, frame: lastSpec && lastSpec.i, effectiveQuality: effectiveQuality, effectiveMotion: effectiveMotion, cache: { bytes: cacheBytes + pendingBytes, readyBytes: cacheBytes, pendingBytes: pendingBytes, pending: Object.keys(loading).length, queued: optionalQueue.length + (optionalActive ? 1 : 0), entries: cache.size, configuredLimit: opts.cacheBytes, limit: effectiveCacheLimit() }, metrics: { rafTicks: metrics.rafTicks, draws: metrics.draws }, error: error }; },
     };
     return api;
   }
@@ -396,10 +581,10 @@
   // (so the explicit form below it is still fine) or the tag says data-manual / data-auto="false".
   function fromTag(el) {
     var d = el.dataset, o = {};
-    if (d.src) o.src = d.src;
-    if (d.spawn) o.spawn = d.spawn;
-    ["size", "speed", "standoff", "minWidth", "zIndex"].forEach(function (k) { if (d[k] !== undefined && d[k] !== "" && !isNaN(+d[k])) o[k] = +d[k]; });
-    ["perch", "fidget", "shadow", "touch", "manifest"].forEach(function (k) { if (d[k] !== undefined) o[k] = d[k] !== "false" && d[k] !== "0"; });
+    ["src", "liteSrc", "spawn", "quality", "motion"].forEach(function (k) { if (d[k]) o[k] = d[k]; });
+    ["size", "speed", "standoff", "minWidth", "cacheBytes", "zIndex"].forEach(function (k) { if (d[k] !== undefined && d[k] !== "" && !isNaN(+d[k])) o[k] = +d[k]; });
+    ["perch", "shadow", "touch", "manifest", "preload", "prefetch"].forEach(function (k) { if (d[k] !== undefined) o[k] = d[k] !== "false" && d[k] !== "0"; });
+    if (d.fidget !== undefined) o.fidget = d.fidget === "auto" ? "auto" : d.fidget !== "false" && d.fidget !== "0";
     return o;
   }
   var cs = typeof document !== "undefined" && document.currentScript;

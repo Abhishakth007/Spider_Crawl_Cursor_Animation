@@ -71,7 +71,7 @@ const settle = async (p, ms = 15000) => { const t0 = Date.now(); while (Date.now
   check(arrived, "one <script> tag, no config, from another origin: the spider finds its sprites, walks in and settles");
   await p.waitForTimeout(500);
   const sheets = log.filter((x) => x.startsWith("/assets/") && x.endsWith(".webp"));
-  check(sheets.length === 10, "the other eight sheets (curves, pivot, fidgets) load once the spider has appeared (" + sheets.length + " in all)");
+  check(sheets.length === 7, "once the spider has appeared the five curved-walk sheets are prefetched (2 + 5 = " + sheets.length + "); the fidget sheets wait until they are needed");
   const tiers = new Set(sheets.map((x) => x.split("/")[2]));
   check(tiers.size === 1, "only one size of sprite is downloaded (tier " + [...tiers].join(",") + ", " + sheets.length + " sheets)");
   check(!log.some((x) => x.endsWith("manifest.json")), "no manifest.json request (so no CORS error from a plain static host)");

@@ -51,11 +51,16 @@ As `create({ ... })`, or on the script tag as `data-size`, `data-speed`, `data-m
 | `perch` | `true` | hide the arrow while the spider sits on the pointer |
 | `standoff` | `0.7` | how far short of a moving pointer it stops, in body lengths |
 | `spawn` | `"edge"` | `"edge"`: comes in from the nearest edge of the window, starting no further than about 7 body lengths from the pointer. `"pointer"`: starts on the pointer |
-| `fidget` | `true` | wave, tap and groom now and then while standing |
+| `quality` | `"auto"` | `"full"`: every sprite size and gait. `"lite"`: about a fifth of the data and memory, fewer frames and gaits, softer on a retina screen. `"auto"`: full, unless the browser asks to save data, is on a slow connection or reports little memory |
+| `motion` | `"auto"` | `"auto"` honours `prefers-reduced-motion`. Also `"full"`, `"reduced"` (one still frame at the pointer) and `"off"` (nothing is fetched) |
+| `fidget` | `"auto"` | now and then, while it stands: a wave, a tap or a groom (on with full quality). `false` makes it perfectly still |
+| `preload` | `true` | on a desktop, fetch the two sheets it needs as soon as the page is idle |
+| `prefetch` | `true` | once it has appeared, quietly fetch the curved-walk sheets within the memory budget |
+| `cacheBytes` | `33554432` | decoded-image memory budget (32 MiB), including images still being decoded |
 | `shadow` | `true` | soft drop shadow |
-| `touch` | `false` | also for touch input |
+| `touch` | `false` | also for touch input (a real mouse on a touch laptop always works) |
 | `minWidth` | `0` | do nothing on windows narrower than this many px |
-| `src` | next to the script | folder with the sprite sheets (or the CDN copy when bundled) |
+| `src` | next to the script | folder with the sprite sheets (the CDN copy when bundled); the lite sheets are found beside it in `assets-lite/` (`liteSrc`) |
 | `manifest` | `false` | read `manifest.json` from `src` (only if you repacked the sheets with other sizes) |
 
 `create()` returns `{ destroy(), set(opts), setSize(px), show(), hide(), position(), state() }`. TypeScript types are included.
@@ -68,12 +73,27 @@ As `create({ ... })`, or on the script tag as `data-size`, `data-speed`, `data-m
 - **Hold still and it settles on the pointer.** When the pointer has rested for a moment, the spider walks the last of the way in with its head on the tip. While it sits there the system arrow is hidden (the spider is the cursor); the moment the pointer moves, the arrow is back and the spider is a separate animal again. Clicks, hovers and drags always go to the real pointer.
 - **Real gait.** Eight legs in two alternating teams (L1 R2 L3 R4 against R1 L2 R3 L4), each foot on the ground 60 % of the time. The legs run at exactly the speed it travels, so planted feet do not skate.
 - **It turns like a walking animal.** The sharper the turn, the more it curves, never sharper than an arc about a body length across, so even a 180 is a swing round with the legs still carrying it forward, not a stop, a spin and a restart. The body bends into the turn (the head leads, the abdomen trails out the far side) and the yaw comes in steps with the legs. Only when the pointer is too close for an arc does it shuffle round on the spot.
-- **Standing, it is alive.** It breathes, its palps twitch, and now and then it waves a front leg, taps a back one, or grooms its fangs. Every standing animation starts and ends on the pose the walk stops in, so there is never a pop.
-- `prefers-reduced-motion` slows it down and stops the fidgets. Touch input is ignored unless `touch: true`. It works under a strict Content-Security-Policy.
+- **Standing, it holds still, as a spider does,** and now and then (every 7 to 16 seconds) it waves a front leg, taps a back one, or grooms its fangs, with its breathing and palp twitches in it. Every standing animation starts and ends on the pose the walk stops in, so there is never a pop. Between fidgets nothing changes, so nothing is drawn and the page does no work for it.
+- `prefers-reduced-motion` shows one still frame at the pointer: no walking, no perching, no animation loop. `motion: "off"` fetches nothing. A hidden tab does no work and starts no downloads. Touch input is ignored unless `touch: true`. It works under a strict Content-Security-Policy, and several instances can share the page (the arrow stays hidden while any one of them sits on it).
 
 ## Why it stays sharp when it is small
 
 A sprite shrunk by the browser is shrunk with a cheap filter, and thin legs and fur turn to mush. So every size is made ahead of time, properly, from a 768 px master: premultiplied (no dark halo on the edge), Lanczos in half steps, then a little sharpening on the colour. There are sheets at 64, 96, 128, 192 and 256 px per frame (`assets/<size>/`), and the page loads only the one nearest the pixels it needs for the size and the screen's pixel ratio (0.7 to 4.8 MB for the visitor; the package holds all five). It is also drawn without ever being resampled twice: the canvas sits on whole device pixels and the sub-pixel part is applied inside the draw.
+
+The **lite** sheets (`assets-lite/`, 0.7 MB for all three sizes) trade that away on purpose: 64, 96 and 128 px only, a 16-frame walk instead of 32, three gaits instead of six, no fidgets. On a retina screen they are about half as sharp and its turns are wider (a 180 takes about 2.3 s over a 74 x 37 px footprint instead of 1.9 s over 42 x 23). They are what `quality: "auto"` picks when the browser asks to save data, is on a 2G connection, or reports 2 GB of memory or less; everyone else gets full quality.
+
+## What it costs the page
+
+Measured in headless Chrome on a retina viewport (software rasterising, so read the numbers relatively), for a spider that has settled on the pointer:
+
+| | data fetched in a session | decoded image memory | CPU while it stands (over a blank page) |
+|---|---|---|---|
+| 1.0.1 | 3.7 MB | about 60 MB, never released | 15.6 % |
+| 1.1.0, full (default) | 3.0 MB | about 25 MB, capped at 32 | 2.9 % |
+| 1.1.0, `fidget: false` | as full | as full | 1.2 % |
+| 1.1.0, `quality: "lite"` | 0.35 MB | about 4 MB | 0.0 % |
+
+The engine behind those numbers: the animation loop is event-driven and stops completely when nothing changes; decoded sheets live in a bounded cache and are released when not drawn; only the two sheets it needs first are critical, the rest are queued one at a time within the budget; nothing runs in a hidden tab; and stale work from a resize, a destroy or a reduced-motion change can never be published.
 
 ## How it was made
 
@@ -89,6 +109,7 @@ A sprite shrunk by the browser is shrunk with a cheap filter, and thin legs and 
 blender -b --factory-startup -P blender/render_sprites.py -- renders/master --res 768 --samples 160 --elev 76
 # pack the sheets for the page (also rewrites the copy of the manifest inside src/spider-cursor.js)
 python pack.py renders/master assets
+python pack.py renders/master assets-lite --profile lite
 # build the files that are published
 npm install && npm run build
 ```
@@ -99,10 +120,12 @@ npm install && npm run build
 `test/` drives the page in Chrome with a real mouse (Playwright):
 
 ```bash
-npm test          # behaviour, jiggle, chase, api, and install
+npm test          # behaviour, jiggle, chase, api, install, and policy
 node test/turn.mjs   # a 180 with the pointer straight behind: how long, how far it walks, which strips
 node test/cdn.mjs    # the published package, loaded from jsDelivr by a page on another origin (needs the network)
 ```
+
+`policy.mjs` covers the engine: nothing fetched before a mouse event, lazy and bounded loading, a hidden tab, destroy during a decode, rapid size changes, reduced motion, shared cursor ownership, the lite/full choice, preload and prefetch, and the idle cost.
 
 `install.mjs` is a stranger's website: the package is served from one origin and the page from another, and it checks every way of using it
 (one script tag with no config, data attributes, `create()` by hand, nothing downloaded before the pointer moves, a strict CSP, the ES module).
