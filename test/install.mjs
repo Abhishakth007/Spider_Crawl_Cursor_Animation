@@ -1,6 +1,6 @@
 // "Someone else's website": the package files are served from one origin, the page from another, with no CORS headers.
 // Checks every way of using it: one script tag with no config, data attributes, create() by hand (no double spider),
-// nothing downloaded before the pointer moves, a strict Content-Security-Policy, and the ES module build.
+// what is downloaded and when (a desktop preloads two sheets, a phone nothing), a strict Content-Security-Policy, and the ES module build.
 //   node build.mjs && node test/install.mjs
 import http from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
@@ -63,18 +63,36 @@ const settle = async (p, ms = 15000) => { const t0 = Date.now(); while (Date.now
 {
   log.length = 0;
   const p = await open("/oneline.html");
-  await p.waitForTimeout(600);
-  check(log.filter((x) => x.startsWith("/assets/")).length === 0, "nothing under assets/ is requested before the pointer moves");
+  await p.waitForTimeout(1500);
+  const early = log.filter((x) => x.startsWith("/assets/") && x.endsWith(".webp")).map((x) => x.split("/").pop()).sort();
+  check(early.join() === "idle_calm.webp,walk0.webp", "a desktop browser preloads just the two sheets it needs while the page is idle, before any mouse move (" + early.join(", ") + ")");
   await p.mouse.move(600, 400);
   const arrived = await settle(p);
   check(arrived, "one <script> tag, no config, from another origin: the spider finds its sprites, walks in and settles");
+  await p.waitForTimeout(500);
   const sheets = log.filter((x) => x.startsWith("/assets/") && x.endsWith(".webp"));
+  check(sheets.length === 10, "the other eight sheets (curves, pivot, fidgets) load once the spider has appeared (" + sheets.length + " in all)");
   const tiers = new Set(sheets.map((x) => x.split("/")[2]));
   check(tiers.size === 1, "only one size of sprite is downloaded (tier " + [...tiers].join(",") + ", " + sheets.length + " sheets)");
   check(!log.some((x) => x.endsWith("manifest.json")), "no manifest.json request (so no CORS error from a plain static host)");
   check(p.problems.length === 0, "no console errors or warnings" + (p.problems.length ? ": " + p.problems.join(" | ") : ""));
   check((await canvases(p)).length === 1, "exactly one spider");
   await p.close();
+}
+// 1b. a phone: no mouse, so nothing is downloaded at all, not even after a tap
+{
+  log.length = 0;
+  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  const p = await ctx.newPage();
+  await p.goto(SITE + "/oneline.html");
+  await p.waitForTimeout(2000);
+  await p.touchscreen.tap(200, 400);
+  await p.waitForTimeout(1500);
+  const got = log.filter((x) => x.startsWith("/assets/"));
+  const script = log.filter((x) => x.endsWith("spider-cursor.min.js")).length;
+  check(script === 1 && got.length === 0, "on a phone only the 14 KB script is fetched: no sprites, even after a tap (" + got.length + " sprite requests)");
+  check((await p.evaluate(() => document.querySelectorAll("canvas").length)) <= 1, "and no spider is drawn");
+  await ctx.close();
 }
 // 2. nested route
 {

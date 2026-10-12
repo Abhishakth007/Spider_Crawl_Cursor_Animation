@@ -30,7 +30,8 @@
  *   speed      1 is a slow crawl; 2 is twice as fast                                           default 1
  *   perch      hide the arrow while the spider sits on the pointer                             default true
  *   standoff   how far short of a moving pointer it stops, in body lengths                     default 0.7
- *   spawn      "edge": walks in from the nearest edge of the window; "pointer": starts on it   default "edge"
+ *   spawn      "edge": comes in from the nearest edge of the window (starting no further than    default "edge"
+ *              about 7 body lengths from the pointer, so there is something to see at once); "pointer": starts on it
  *   fidget     now and then waves, taps or grooms while standing                               default true
  *   shadow     a soft drop shadow                                                              default true
  *   touch      also for touch input                                                            default false
@@ -38,7 +39,8 @@
  *   manifest   read manifest.json from src instead of the copy built into this file (only      default false
  *              needed if you repacked the sheets with other sizes)
  *   zIndex                                                                                     default 2147483647
- * Nothing is downloaded until the pointer first moves (so a phone never pays for it), and then only one size of sprite.
+ * Only one size of sprite is ever downloaded. A desktop browser fetches the two sheets it needs as soon as the page is idle,
+ * so the spider is there the moment the mouse first moves; a phone (no mouse) downloads nothing at all.
  * Returns { destroy(), set(opts), setSize(px), show(), hide(), position(), state() }.
  */
 (function (root, factory) {
@@ -47,7 +49,7 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var VERSION = "1.0.0";                              // the build step puts the package version here
+  var VERSION = "1.0.1";                              // the build step puts the package version here
   // Where this script was loaded from, read now, while it is running. The sprites live in assets/ beside it, so a page that
   // loads it from anywhere (a CDN, another site, a sub-folder) finds them without being told. The bundler builds blank this.
   var SELF = /*SELF*/typeof document !== "undefined" && document.currentScript && document.currentScript.src ? document.currentScript.src : ""/*ENDSELF*/;
@@ -143,16 +145,18 @@
       if (t !== tier) {
         tier = t; sheets = {}; loading = {}; ready = false;
         Promise.all([loadStrip("walk0"), loadStrip("idle_calm")]).then(function () { if (t === tier) { ready = true; dirty = true; } });
-        ["walk18", "walk34", "walk50", "walk70", "pivot", "idle_wave", "idle_tap", "idle_groom"].forEach(loadStrip);
+        if (spawned) loadRest();
       }
       dirty = true;
     }
+    // the curves, the pivot and the fidgets are not needed until it has appeared and started to walk
+    function loadRest() { ["walk18", "walk34", "walk50", "walk70", "pivot", "idle_wave", "idle_tap", "idle_groom"].forEach(loadStrip); }
 
     // ---- state. Positions are the spider's pivot (the middle of its feet); heading 0 faces up the screen, + is clockwise
     var X = -999, Y = -999, th = 0, v = 0, w = 0, phase = 0;
     var mode = "idle";                 // idle | gait | stopping
     var px = 0, py = 0, seen = false, lastMove = 0, anchorX = 0, anchorY = 0, perched = false, pressed = 0, pressT = 0;
-    var inputOk = true, spawned = false, dirty = true;
+    var inputOk = true, spawned = false, dirty = true, enterUntil = 0;
     var strip = "idle_calm", mirror = false, idleMirror = false, idleT = 0, idleStrip = "idle_calm", nextFidget = 0, turnSign = 1;
     var stripAngle = 0, lastKey = "", fade = null, lastSpec = null;
     var lastT = performance.now();
@@ -161,13 +165,20 @@
 
     function spawn() {
       spawned = true;
-      if (opts.spawn === "pointer") { th = 0; X = px; Y = py + HEAD; mode = "idle"; perched = false; nextFidget = performance.now() + 3000; return; }
+      loadRest();
+      var t0 = performance.now();
+      if (opts.spawn === "pointer") { th = 0; X = px; Y = py + HEAD; mode = "idle"; perched = false; nextFidget = t0 + 3000; return; }
       var W = innerWidth, H = innerHeight, m = frameCss * 0.55;
       var d = [px, W - px, py, H - py], k = d.indexOf(Math.min.apply(null, d));
       if (k === 0) { X = -m; Y = clamp(py, 0, H); } else if (k === 1) { X = W + m; Y = clamp(py, 0, H); }
       else if (k === 2) { Y = -m; X = clamp(px, 0, W); } else { Y = H + m; X = clamp(px, 0, W); }
+      // A slow crawl from the far edge of a big window is a long wait for a first look: start no further than about seven
+      // body lengths from the pointer, along the same line. Nearer than that it still walks in from the edge; further, it
+      // fades in there (the canvas fades in over a quarter of a second) and scuttles the rest, quicker than it crawls.
+      var dx = X - px, dy = Y - py, dd = Math.hypot(dx, dy), reach = 7 * opts.size;
+      if (dd > reach) { X = px + dx * reach / dd; Y = py + dy * reach / dd; }
       th = Math.atan2(px - X, -(py - Y));
-      mode = "idle"; nextFidget = performance.now() + 3000;
+      mode = "idle"; nextFidget = t0 + 3000; enterUntil = t0 + 4500;
     }
 
     function onMove(e) {
@@ -202,7 +213,8 @@
       var bx = px - X, by = py - Y, under = Math.hypot(bx, by) < HEAD * 0.95;
       var active = now - lastMove < 650;
       var E = active ? opts.standoff * opts.size : 0;
-      var speedK = opts.speed * (reduce ? 0.6 : 1);
+      if (enterUntil && dist < 3 * opts.size) enterUntil = 0;           // the scuttle in is over the first time it gets near the pointer
+      var speedK = opts.speed * (reduce ? 0.6 : 1) * (!reduce && now < enterUntil ? 1.6 : 1);   // a quick scuttle in, then the crawl
       var goal = !under && dist > (active ? E + 2 : 3.5);
       var vd = 0, wd = 0, e = 0;
       if (goal && spawned) {
@@ -332,12 +344,13 @@
       if (opts.debug) window.__spider = api.state();
     }
 
-    // ---- start: only when the pointer first moves, so a page on a phone (or one nobody touches) downloads nothing
+    // ---- start. The two sheets it needs are fetched as soon as the page is idle on a machine with a mouse (so the spider is
+    // there the moment the mouse first moves); a phone, or any page nobody touches with a mouse, downloads nothing.
     var onResize = function () { setSize(opts.size); };
-    var booted = false;
-    function boot() {
-      if (booted || dead) return;
-      booted = true;
+    var prepared = false, booted = false;
+    function prepare() {
+      if (prepared || dead) return;
+      prepared = true;
       window.addEventListener("resize", onResize);
       var metaP = opts.manifest && typeof fetch === "function" && location.protocol !== "file:"
         ? fetch(base() + "manifest.json").then(function (r) { if (!r.ok) throw 0; return r.json(); }).catch(function () { return META; })
@@ -347,8 +360,16 @@
         M = m; setSize(opts.size);
         if (seen && !spawned) { spawn(); st.opacity = "1"; }
       }).catch(function (err) { console.error("spider-cursor:", err); });
+    }
+    function boot() {
+      prepare();
+      if (booted || dead) return;
+      booted = true;
       lastT = performance.now();
       raf = requestAnimationFrame(frame);
+    }
+    if (typeof matchMedia === "function" && matchMedia("(hover: hover) and (pointer: fine)").matches) {
+      (window.requestIdleCallback || function (f) { return setTimeout(f, 250); })(prepare, { timeout: 2500 });
     }
 
     var api = {

@@ -26,11 +26,17 @@
   pre { background: #26231e; color: #f4f1ea; padding: 14px 16px; border-radius: 12px; overflow-x: auto; font: 13px/1.5 ui-monospace, monospace; max-width: 100%; }
   .rate { margin-top: 44px; padding: 20px 22px; background: #fff; border: 1px solid #e2dccd; border-radius: 14px; max-width: 62ch; }
   .rate p { margin: 6px 0 14px; }
+  #hint { display: inline-flex; align-items: center; gap: 10px; margin: 6px 0 4px; padding: 9px 16px; background: #26231e; color: #f4f1ea; border-radius: 999px; font-size: 14px; transition: opacity .6s, transform .6s; }
+  #hint .dot { width: 9px; height: 9px; border-radius: 50%; background: #f2a30a; animation: pulse 1.4s ease-in-out infinite; flex: none; }
+  #hint.gone { opacity: 0; transform: translateY(-4px); pointer-events: none; }
+  @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.7); opacity: .45; } }
+  @media (prefers-reduced-motion: reduce) { #hint .dot { animation: none; } }
 </style>
 </head>
 <body>
 <main>
   <h1>A spider follows the cursor.</h1>
+  <div id="hint" role="status"><span class="dot"></span><span id="hinttext">Move your mouse. A spider will crawl in and find it.</span></div>
   <p>Your pointer stays your pointer. The spider is its own animal: move around and it crawls after you, slowly, swinging round in an arc when it has to turn,
      and stops a little short while you are moving. Hold still and it walks the last of the way in and settles on the tip,
      and while it sits there the arrow is hidden. Move, and the arrow is yours again. Click, hover and type as usual.</p>
@@ -63,6 +69,12 @@
 <script>
   const spider = SpiderCursor.create({ size: 34, debug: true });
   const $ = (id) => document.getElementById(id);
+  // The spider needs a mouse. Say so on a touch screen, where there is nothing to see; elsewhere the hint fades once it has appeared.
+  if (matchMedia("(hover: none), (pointer: coarse)").matches) {
+    $("hinttext").textContent = "This spider follows a mouse pointer, so it stays hidden on touch screens. Open this page on a computer.";
+  } else {
+    addEventListener("pointermove", () => setTimeout(() => $("hint").classList.add("gone"), 3500), { once: true });
+  }
   $("size").oninput = (e) => { $("sizeo").textContent = e.target.value; spider.set({ size: +e.target.value }); };
   $("speed").oninput = (e) => { $("speedo").textContent = (+e.target.value).toFixed(1); spider.set({ speed: +e.target.value }); };
   document.addEventListener("click", (e) => { $("log").textContent = "click on <" + e.target.tagName.toLowerCase() + "> at " + e.clientX + ", " + e.clientY; });

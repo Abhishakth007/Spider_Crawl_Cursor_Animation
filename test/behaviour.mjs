@@ -30,7 +30,9 @@ while (Date.now() - t0 < 14000) {
   if (s && s.perched) break;
 }
 const last = samples[samples.length - 1];
-check(last && last.perched, "it reached the pointer and settled (perched) after " + (last ? last.t : "?") + " ms; mode " + (last && last.mode));
+const seenAt = samples.find((q) => q.ready && q.x > -20 && q.x < 1020 && q.y > -20 && q.y < 660);
+check(seenAt && seenAt.t < 1500, "the spider is on screen within 1.5 s of the first mouse move (" + (seenAt ? seenAt.t + " ms" : "never") + ")");
+check(last && last.perched && last.t < 5200, "it reached the pointer and settled (perched) after " + (last ? last.t : "?") + " ms; mode " + (last && last.mode));
 check(await attr(), "native cursor hidden while perched");
 // speed: positions between samples
 let maxV = 0, maxJump = 0;

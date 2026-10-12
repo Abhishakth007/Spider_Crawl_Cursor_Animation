@@ -18,7 +18,7 @@ One line. Nothing to host, no build step:
 <script src="https://cdn.jsdelivr.net/npm/spider-crawl-cursor@1/spider-cursor.min.js"></script>
 ```
 
-That is all: it starts itself, finds its own sprites, and downloads nothing until the pointer first moves (so a phone never pays for it).
+That is all: it starts itself and finds its own sprites. It only fetches what it needs: on a desktop two small sheets once the page is idle (so the spider is there the moment the mouse first moves), and on a phone, which has no mouse, nothing at all.
 Options go on the tag:
 
 ```html
@@ -50,7 +50,7 @@ As `create({ ... })`, or on the script tag as `data-size`, `data-speed`, `data-m
 | `speed` | `1` | `1` is a slow crawl; `2` is twice as fast |
 | `perch` | `true` | hide the arrow while the spider sits on the pointer |
 | `standoff` | `0.7` | how far short of a moving pointer it stops, in body lengths |
-| `spawn` | `"edge"` | `"edge"`: walks in from the nearest edge of the window. `"pointer"`: starts on the pointer |
+| `spawn` | `"edge"` | `"edge"`: comes in from the nearest edge of the window, starting no further than about 7 body lengths from the pointer. `"pointer"`: starts on the pointer |
 | `fidget` | `true` | wave, tap and groom now and then while standing |
 | `shadow` | `true` | soft drop shadow |
 | `touch` | `false` | also for touch input |
@@ -63,6 +63,7 @@ As `create({ ... })`, or on the script tag as `data-size`, `data-speed`, `data-m
 ## How it behaves
 
 - **It is its own animal.** The pointer stays the pointer. The spider crawls after it (about 2 body lengths a second, a little quicker when the pointer is far away), speeds up and slows down smoothly, and keeps walking until it gets there.
+- **It is there at once.** On the first mouse move it appears within a few body lengths of the pointer (it fades in if the edge is far) and scuttles in, quicker than its crawl, so you are looking at it within a second and it has reached the pointer in about three. Then it crawls.
 - **It comes up behind you, not onto you.** While you move, it stops about 0.7 body lengths short of the pointer.
 - **Hold still and it settles on the pointer.** When the pointer has rested for a moment, the spider walks the last of the way in with its head on the tip. While it sits there the system arrow is hidden (the spider is the cursor); the moment the pointer moves, the arrow is back and the spider is a separate animal again. Clicks, hovers and drags always go to the real pointer.
 - **Real gait.** Eight legs in two alternating teams (L1 R2 L3 R4 against R1 L2 R3 L4), each foot on the ground 60 % of the time. The legs run at exactly the speed it travels, so planted feet do not skate.

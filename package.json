@@ -1,6 +1,6 @@
 {
   "name": "spider-crawl-cursor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A spider that follows your cursor. Rendered in Blender, walks like a real one: eight legs in two alternating teams, arcing turns, a body that bends, and it settles on the pointer when you stop. One script tag.",
   "keywords": [
     "cursor",
