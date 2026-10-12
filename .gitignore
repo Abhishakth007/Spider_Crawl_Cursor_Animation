@@ -1,0 +1,6 @@
+node_modules/
+renders/
+shots/
+__pycache__/
+*.blend1
+*.tgz

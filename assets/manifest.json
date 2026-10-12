@@ -1,0 +1,45 @@
+{
+ "frame_px": 768,
+ "frame_bu": 340.0,
+ "elev": 76.0,
+ "pivot_bu": [
+  0.0,
+  -2.0,
+  0.0
+ ],
+ "stride_bu": 84.0,
+ "turn_deg": 48.00000000000001,
+ "beta": 0.6,
+ "counts": {
+  "walk0": 32,
+  "walk18": 32,
+  "walk34": 32,
+  "walk50": 32,
+  "walk70": 32,
+  "pivot": 32,
+  "idle_calm": 48,
+  "idle_wave": 60,
+  "idle_tap": 44,
+  "idle_groom": 52
+ },
+ "walks": {
+  "walk0": 0.0,
+  "walk18": 18.0,
+  "walk34": 34.0,
+  "walk50": 50.0,
+  "walk70": 70.0,
+  "pivot": 90.0
+ },
+ "head_bu": 34.0,
+ "body_bu": 136.0,
+ "span_bu": 244.0,
+ "cols": 8,
+ "tiers": [
+  64,
+  96,
+  128,
+  192,
+  256
+ ],
+ "format": "webp"
+}

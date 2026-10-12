@@ -1,0 +1,65 @@
+{
+  "name": "spider-crawl-cursor",
+  "version": "1.0.0",
+  "description": "A spider that follows your cursor. Rendered in Blender, walks like a real one: eight legs in two alternating teams, arcing turns, a body that bends, and it settles on the pointer when you stop. One script tag.",
+  "keywords": [
+    "cursor",
+    "spider",
+    "animation",
+    "sprite",
+    "canvas",
+    "blender",
+    "pointer",
+    "mouse",
+    "follow-cursor",
+    "fun"
+  ],
+  "homepage": "https://github.com/Abhishakth007/Spider_Crawl_Cursor_Animation#readme",
+  "bugs": {
+    "url": "https://github.com/Abhishakth007/Spider_Crawl_Cursor_Animation/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Abhishakth007/Spider_Crawl_Cursor_Animation.git"
+  },
+  "license": "MIT",
+  "author": "D.Abhishakth",
+  "main": "spider-cursor.cjs",
+  "module": "spider-cursor.mjs",
+  "types": "spider-cursor.d.ts",
+  "unpkg": "spider-cursor.min.js",
+  "jsdelivr": "spider-cursor.min.js",
+  "exports": {
+    ".": {
+      "types": "./spider-cursor.d.ts",
+      "import": "./spider-cursor.mjs",
+      "require": "./spider-cursor.cjs",
+      "default": "./spider-cursor.js"
+    },
+    "./assets/*": "./assets/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "spider-cursor.js",
+    "spider-cursor.min.js",
+    "spider-cursor.mjs",
+    "spider-cursor.cjs",
+    "spider-cursor.d.ts",
+    "assets/",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "node build.mjs",
+    "prepublishOnly": "node build.mjs",
+    "test": "node test/behaviour.mjs && node test/jiggle.mjs && node test/chase.mjs && node test/api.mjs && node test/install.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "playwright-core": "^1.50.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

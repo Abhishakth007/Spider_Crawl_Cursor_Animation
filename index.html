@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spider cursor</title>
+<meta name="description" content="A spider that follows your cursor. Rendered in Blender, walks like a real one. One script tag.">
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; font: 16px/1.55 system-ui, sans-serif; background: #f4f1ea; color: #26231e; min-height: 100vh; }
+  main { max-width: 900px; margin: 0 auto; padding: 64px 24px 140px; }
+  h1 { font-size: 34px; margin: 0 0 8px; letter-spacing: -.01em; }
+  p { color: #5e584c; max-width: 62ch; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; margin: 26px 0; align-items: center; }
+  button, .btn { font: inherit; padding: 10px 18px; border-radius: 10px; border: 1px solid #cfc8b8; background: #fff; color: inherit; text-decoration: none; cursor: pointer; }
+  button:hover, .btn:hover { background: #26231e; color: #fff; }
+  .btn.primary { background: #26231e; color: #fff; border-color: #26231e; }
+  .btn.primary:hover { background: #f2a30a; border-color: #f2a30a; color: #26231e; }
+  input[type=text] { font: inherit; padding: 10px 14px; border-radius: 10px; border: 1px solid #cfc8b8; width: 240px; background: #fff; }
+  label { font: 13px ui-monospace, monospace; color: #7a7366; display: inline-flex; gap: 8px; align-items: center; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-top: 30px; }
+  .card { background: #fff; border: 1px solid #e2dccd; border-radius: 14px; padding: 18px; min-height: 90px; }
+  .card:hover { border-color: #f2a30a; }
+  #log { font: 12px ui-monospace, monospace; color: #7a7366; margin-top: 8px; min-height: 1.4em; }
+  h2 { font-size: 20px; margin: 44px 0 6px; }
+  pre { background: #26231e; color: #f4f1ea; padding: 14px 16px; border-radius: 12px; overflow-x: auto; font: 13px/1.5 ui-monospace, monospace; max-width: 100%; }
+  .rate { margin-top: 44px; padding: 20px 22px; background: #fff; border: 1px solid #e2dccd; border-radius: 14px; max-width: 62ch; }
+  .rate p { margin: 6px 0 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>A spider follows the cursor.</h1>
+  <p>Your pointer stays your pointer. The spider is its own animal: move around and it crawls after you, slowly, swinging round in an arc when it has to turn,
+     and stops a little short while you are moving. Hold still and it walks the last of the way in and settles on the tip,
+     and while it sits there the arrow is hidden. Move, and the arrow is yours again. Click, hover and type as usual.</p>
+  <div class="row">
+    <button id="b1">Button</button>
+    <a class="btn" href="#link">A link</a>
+    <input type="text" placeholder="Type here">
+    <label>size <input id="size" type="range" min="22" max="90" value="34"> <output id="sizeo">34</output></label>
+    <label>speed <input id="speed" type="range" min="0.4" max="2.5" step="0.1" value="1"> <output id="speedo">1.0</output></label>
+  </div>
+  <div id="log">click something</div>
+  <div class="grid">
+    <div class="card">Card one</div><div class="card">Card two</div><div class="card">Card three</div>
+    <div class="card">Card four</div><div class="card">Card five</div><div class="card">Card six</div>
+  </div>
+
+  <h2>Put it on your page</h2>
+  <p>One line. Nothing to host, no build step:</p>
+<pre>&lt;script src="https://cdn.jsdelivr.net/npm/spider-crawl-cursor@1/spider-cursor.min.js"&gt;&lt;/script&gt;</pre>
+  <p>Options go on the tag: <code>data-size="40"</code> <code>data-speed="1.5"</code> <code>data-perch="false"</code>. Or <code>npm i spider-crawl-cursor</code>.</p>
+
+  <div class="rate">
+    <strong>Tried it? Rate it.</strong>
+    <p>It takes a minute: a 1&ndash;5 rating, and whether it moves like a real spider.</p>
+    <a class="btn primary" href="https://github.com/Abhishakth007/Spider_Crawl_Cursor_Animation/issues/new?template=feedback.yml">Give feedback</a>
+    <a class="btn" href="https://github.com/Abhishakth007/Spider_Crawl_Cursor_Animation">&#9733; Star on GitHub</a>
+  </div>
+</main>
+<script src="spider-cursor.js"></script>
+<script>
+  const spider = SpiderCursor.create({ size: 34, debug: true });
+  const $ = (id) => document.getElementById(id);
+  $("size").oninput = (e) => { $("sizeo").textContent = e.target.value; spider.set({ size: +e.target.value }); };
+  $("speed").oninput = (e) => { $("speedo").textContent = (+e.target.value).toFixed(1); spider.set({ speed: +e.target.value }); };
+  document.addEventListener("click", (e) => { $("log").textContent = "click on <" + e.target.tagName.toLowerCase() + "> at " + e.clientX + ", " + e.clientY; });
+</script>
+</body>
+</html>

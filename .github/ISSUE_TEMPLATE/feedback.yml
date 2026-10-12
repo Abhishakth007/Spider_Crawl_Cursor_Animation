@@ -1,0 +1,36 @@
+name: Rate the spider
+description: Tried it? Tell me how it feels. It takes a minute.
+title: "Feedback: "
+body:
+  - type: dropdown
+    id: rating
+    attributes:
+      label: Your rating
+      options:
+        - "5 - love it"
+        - "4 - really good"
+        - "3 - okay"
+        - "2 - needs work"
+        - "1 - not for me"
+    validations:
+      required: true
+  - type: dropdown
+    id: real
+    attributes:
+      label: Does it move like a real spider?
+      options:
+        - "Yes, convincingly"
+        - "Mostly"
+        - "No, it feels like a toy"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: What did you like, and what felt off?
+      description: Walking, turning, how it follows the cursor, how sharp it looks, anything.
+  - type: input
+    id: device
+    attributes:
+      label: Browser and device
+      placeholder: "Chrome on a Windows laptop, retina MacBook, ..."
