@@ -100,6 +100,7 @@ npm install && npm run build
 ```bash
 npm test          # behaviour, jiggle, chase, api, and install
 node test/turn.mjs   # a 180 with the pointer straight behind: how long, how far it walks, which strips
+node test/cdn.mjs    # the published package, loaded from jsDelivr by a page on another origin (needs the network)
 ```
 
 `install.mjs` is a stranger's website: the package is served from one origin and the page from another, and it checks every way of using it
