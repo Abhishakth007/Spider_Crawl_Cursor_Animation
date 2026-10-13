@@ -43,6 +43,12 @@ await sleep(4000);                                                              
 const quiet = await state();
 check(quiet.cache.readyBytes < busy.cache.readyBytes * 0.4, `after sitting still, the turning sheets are given back (${(quiet.cache.readyBytes / 1048576).toFixed(1)} MB left)`);
 check(quiet.perched && quiet.mode === "idle", "it is still perched and idle");
+// a different quality is a different set of sheets: the decoded full-quality ones are let go, not left in memory beside the lite ones
+await page.evaluate(() => window.sp.set({ quality: "lite" }));
+await sleep(2500);
+const lite = await state();
+check(lite.effectiveQuality === "lite" && lite.ready && lite.error === null, "after switching to lite the spider is ready on the lite sheets");
+check(lite.cache.readyBytes < 8e6, `and only the lite sheets are resident (${(lite.cache.readyBytes / 1048576).toFixed(1)} MB; the full ones were ${(quiet.cache.readyBytes / 1048576).toFixed(1)} MB even when it was still)`);
 const before = requests.length;
 await page.mouse.move(150, 120, { steps: 30 });                                     // off again, across the page
 await sleep(6000);

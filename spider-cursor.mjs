@@ -621,6 +621,8 @@ var module = { exports: {} };
     }
     function reconfigure() {
       setPerched(false); generation++; cancelLoads(); if (manifestController) manifestController.abort();
+      // a different skin, quality or motion mode is a different set of sheets: the decoded ones it is leaving would only sit in memory
+      cancelTrim(); cache.forEach(function (entry) { release(entry.image); }); cache.clear(); cacheBytes = 0; prefetched = "";
       assetsStarted = false; M = null; tier = 0; sheets = {}; ready = false; spawned = false; stopLoop(); resolvePolicy();
       if (effectiveMotion === "off") st.opacity = "0"; else if (seen && shown && pageVisible) beginAssets();
     }
