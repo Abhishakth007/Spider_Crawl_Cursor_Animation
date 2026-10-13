@@ -1,20 +1,20 @@
 {
  "frame_px": 768,
- "frame_bu": 340.0,
+ "frame_bu": 400.0,
  "elev": 76.0,
  "pivot_bu": [
   0.0,
-  -2.0,
+  10.307,
   0.0
  ],
- "stride_bu": 84.0,
- "turn_deg": 48.00000000000001,
- "beta": 0.6,
+ "stride_bu": 135.0,
+ "turn_deg": 62.0,
+ "beta": 0.56,
  "counts": {
   "walk0": 16,
   "walk34": 16,
   "pivot": 16,
-  "idle_calm": 12,
+  "idle_calm": 1,
   "idle_still": 1
  },
  "walks": {
@@ -22,9 +22,11 @@
   "walk34": 34.0,
   "pivot": 90.0
  },
- "head_bu": 34.0,
- "body_bu": 136.0,
- "span_bu": 244.0,
+ "head_bu": 29.69,
+ "body_bu": 140.0,
+ "span_bu": 258.3,
+ "skin": "spidey",
+ "shadow": "baked",
  "cols": 8,
  "tiers": [
   64,

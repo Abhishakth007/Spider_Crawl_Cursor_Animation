@@ -22,18 +22,23 @@ def arguments():
     parser.add_argument("dst")
     parser.add_argument("--profile", choices=("full", "lite"), default="full")
     parser.add_argument("--tiers")
+    parser.add_argument("--only", help="re-encode just these strips (comma separated); the manifest still describes them all")
     return parser.parse_args()
 
 
 def strips_for(meta, profile):
+    # Standing still shows one frame (the rest pose); all the movement of a standing spider is in the fidget strips. So idle_calm is that one
+    # frame: a 48-frame strip would be about half of what a first visit downloads, and a third of what is decoded, to show a single picture.
     if profile == "full":
-        return {name: (name, list(range(count))) for name, count in meta["counts"].items()}
+        strips = {name: (name, list(range(count))) for name, count in meta["counts"].items()}
+        strips["idle_calm"] = ("idle_calm", [0])
+        return strips
     # Lite retains the same start/end gait poses while sampling fewer intermediate frames.
     return {
         "walk0": ("walk0", list(range(0, meta["counts"]["walk0"], 2))),
         "walk34": ("walk34", list(range(0, meta["counts"]["walk34"], 2))),
         "pivot": ("pivot", list(range(0, meta["counts"]["pivot"], 2))),
-        "idle_calm": ("idle_calm", list(range(0, meta["counts"]["idle_calm"], 4))),
+        "idle_calm": ("idle_calm", [0]),
         "idle_still": ("idle_calm", [0]),
     }
 
@@ -64,6 +69,7 @@ def main():
         meta = json.load(handle)
     tiers = [int(v) for v in (args.tiers or ("64,96,128" if args.profile == "lite" else "64,96,128,192,256")).split(",")]
     strips = strips_for(meta, args.profile)
+    only = set(args.only.split(",")) if args.only else None
     os.makedirs(dst, exist_ok=True)
     total = 0
     for px in tiers:
@@ -71,9 +77,11 @@ def main():
         os.makedirs(d, exist_ok=True)
         tsum = 0
         for name, (source_name, frames) in strips.items():
+            if only and name not in only:
+                continue
             n = len(frames)
             rows = (n + COLS - 1) // COLS
-            sheet = Image.new("RGBA", (COLS * px, rows * px), (0, 0, 0, 0))
+            sheet = Image.new("RGBA", (min(COLS, n) * px, rows * px), (0, 0, 0, 0))      # a short strip is only as wide as it is long
             for k, frame in enumerate(frames):
                 f = os.path.join(src, f"{source_name}_{frame:02d}.png")
                 sheet.paste(shrink(f, px), ((k % COLS) * px, (k // COLS) * px))
@@ -85,7 +93,7 @@ def main():
         total += tsum
     m = dict(meta)
     m["counts"] = {name: len(frames) for name, (_, frames) in strips.items()}
-    m["walks"] = {name: meta["walks"][name] for name in ("walk0", "walk34", "pivot") if name in strips}
+    m["walks"] = {name: meta["walks"][name] for name in meta["walks"] if name in strips}      # each profile lists the gait strips it really has
     m.update({"cols": COLS, "tiers": tiers, "format": "webp", "profile": args.profile})
     with open(os.path.join(dst, "manifest.json"), "w", encoding="utf-8", newline="\n") as handle:
         json.dump(m, handle, indent=1)

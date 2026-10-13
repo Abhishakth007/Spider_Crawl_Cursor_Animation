@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Spider cursor</title>
-<meta name="description" content="A spider that follows your cursor. Rendered in Blender, walks like a real one. One script tag.">
+<meta name="description" content="A spider that follows your cursor. Rendered in Blender, walks like a real one, with a soft shadow of its own. Two skins. One script tag.">
 <style>
   :root { color-scheme: light; }
   body { margin: 0; font: 16px/1.55 system-ui, sans-serif; background: #f4f1ea; color: #26231e; min-height: 100vh; }
@@ -46,6 +46,7 @@
     <input type="text" placeholder="Type here">
     <label>size <input id="size" type="range" min="22" max="90" value="34"> <output id="sizeo">34</output></label>
     <label>speed <input id="speed" type="range" min="0.4" max="2.5" step="0.1" value="1"> <output id="speedo">1.0</output></label>
+    <label>skin <select id="skin"><option value="classic">red &amp; blue</option><option value="widow">black widow</option></select></label>
   </div>
   <div id="log">click something</div>
   <div class="grid">
@@ -56,7 +57,7 @@
   <h2>Put it on your page</h2>
   <p>One line. Nothing to host, no build step:</p>
 <pre>&lt;script src="https://cdn.jsdelivr.net/npm/spider-crawl-cursor@1/spider-cursor.min.js"&gt;&lt;/script&gt;</pre>
-  <p>Options go on the tag: <code>data-size="40"</code> <code>data-speed="1.5"</code> <code>data-perch="false"</code>. Or <code>npm i spider-crawl-cursor</code>.</p>
+  <p>Options go on the tag: <code>data-size="40"</code> <code>data-speed="1.5"</code> <code>data-perch="false"</code> <code>data-skin="widow"</code>. Or <code>npm i spider-crawl-cursor</code>.</p>
 
   <div class="rate">
     <strong>Tried it? Rate it.</strong>
@@ -67,7 +68,8 @@
 </main>
 <script src="spider-cursor.js"></script>
 <script>
-  const spider = SpiderCursor.create({ size: 34, debug: true });
+  const q = new URLSearchParams(location.search);      // ?debug publishes the spider's state on window.__spider (the tests read it); ?skin=widow
+  const spider = SpiderCursor.create({ size: 34, skin: q.get("skin") === "widow" ? "widow" : "classic", debug: q.has("debug") });
   const $ = (id) => document.getElementById(id);
   // The spider needs a mouse. Say so on a touch screen, where there is nothing to see; elsewhere the hint fades once it has appeared.
   if (matchMedia("(hover: none), (pointer: coarse)").matches) {
@@ -76,6 +78,8 @@
     addEventListener("pointermove", () => setTimeout(() => $("hint").classList.add("gone"), 3500), { once: true });
   }
   $("size").oninput = (e) => { $("sizeo").textContent = e.target.value; spider.set({ size: +e.target.value }); };
+  if (q.get("skin") === "widow") $("skin").value = "widow";
+  $("skin").onchange = (e) => spider.set({ skin: e.target.value });
   $("speed").oninput = (e) => { $("speedo").textContent = (+e.target.value).toFixed(1); spider.set({ speed: +e.target.value }); };
   document.addEventListener("click", (e) => { $("log").textContent = "click on <" + e.target.tagName.toLowerCase() + "> at " + e.clientX + ", " + e.clientY; });
 </script>

@@ -4,3 +4,6 @@ shots/
 __pycache__/
 *.blend1
 *.tgz
+.env
+.env.*
+bench/

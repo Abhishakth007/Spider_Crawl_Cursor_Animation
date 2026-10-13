@@ -8,7 +8,7 @@ async function run(name, ctxOpts, create, fn) {
   const p = await ctx.newPage();
   p.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") errs.push(name + ": " + m.text()); });
   p.on("pageerror", (e) => errs.push(name + " pageerror: " + e.message));
-  await p.goto(pathToFileURL(resolve("index.html")).href);
+  await p.goto(pathToFileURL(resolve("index.html")).href + "?debug");
   await p.evaluate((c) => { window.s2 = SpiderCursor.create(Object.assign({ src: "assets/", debug: false }, c)); }, create);
   await fn(p);
   await ctx.close();

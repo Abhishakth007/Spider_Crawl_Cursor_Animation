@@ -4,7 +4,7 @@ import { launch } from "./_pw.mjs";
 import { mkdirSync, rmSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
-const url = process.argv[2] || pathToFileURL(resolve("index.html")).href;
+const url = process.argv[2] || pathToFileURL(resolve("index.html")).href + "?debug";
 const out = "shots/turn"; rmSync(out, { recursive: true, force: true }); mkdirSync(out, { recursive: true });
 const b = await launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 640 }, deviceScaleFactor: 2 });

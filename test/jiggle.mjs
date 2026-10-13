@@ -3,7 +3,7 @@ import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 const b = await launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 640 }, deviceScaleFactor: 2 });
-await p.goto(pathToFileURL(resolve("index.html")).href);
+await p.goto(pathToFileURL(resolve("index.html")).href + "?debug");
 await p.mouse.move(800, 500);
 await p.waitForFunction(() => window.__spider && window.__spider.perched, null, { timeout: 20000 });
 const results = [];

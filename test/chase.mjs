@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { writeFileSync } from "node:fs";
 const b = await launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 640 }, deviceScaleFactor: 2 });
-await p.goto(pathToFileURL(resolve("index.html")).href);
+await p.goto(pathToFileURL(resolve("index.html")).href + "?debug");
 await p.mouse.move(500, 320);
 await p.waitForFunction(() => window.__spider && window.__spider.perched, null, { timeout: 20000 });
 const rows = []; const t0 = Date.now();

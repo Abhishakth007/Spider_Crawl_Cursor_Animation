@@ -11,7 +11,7 @@ const p = await b.newPage({ viewport: { width: 1000, height: 640 }, deviceScaleF
 const logs = [];
 p.on("console", (m) => logs.push(m.type() + ": " + m.text()));
 p.on("pageerror", (e) => logs.push("pageerror: " + e.message));
-await p.goto(pathToFileURL(resolve("index.html")).href);
+await p.goto(pathToFileURL(resolve("index.html")).href + "?debug");
 await p.waitForTimeout(800);
 const st = () => p.evaluate(() => window.__spider);
 const attr = () => p.evaluate(() => document.documentElement.hasAttribute("data-spider-perched"));

@@ -1,15 +1,15 @@
 {
  "frame_px": 768,
- "frame_bu": 340.0,
+ "frame_bu": 400.0,
  "elev": 76.0,
  "pivot_bu": [
   0.0,
-  -2.0,
+  10.307,
   0.0
  ],
- "stride_bu": 84.0,
- "turn_deg": 48.00000000000001,
- "beta": 0.6,
+ "stride_bu": 135.0,
+ "turn_deg": 62.0,
+ "beta": 0.56,
  "counts": {
   "walk0": 32,
   "walk18": 32,
@@ -17,10 +17,11 @@
   "walk50": 32,
   "walk70": 32,
   "pivot": 32,
-  "idle_calm": 48,
+  "idle_calm": 1,
   "idle_wave": 60,
   "idle_tap": 44,
-  "idle_groom": 52
+  "idle_groom": 52,
+  "idle_rock": 56
  },
  "walks": {
   "walk0": 0.0,
@@ -30,9 +31,11 @@
   "walk70": 70.0,
   "pivot": 90.0
  },
- "head_bu": 34.0,
- "body_bu": 136.0,
- "span_bu": 244.0,
+ "head_bu": 29.69,
+ "body_bu": 140.0,
+ "span_bu": 258.3,
+ "skin": "spidey",
+ "shadow": "baked",
  "cols": 8,
  "tiers": [
   64,
@@ -41,5 +44,6 @@
   192,
   256
  ],
- "format": "webp"
+ "format": "webp",
+ "profile": "full"
 }

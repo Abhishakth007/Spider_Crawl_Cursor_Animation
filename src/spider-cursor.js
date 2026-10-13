@@ -25,6 +25,7 @@
  * add data-manual to switch the automatic start off (for example when you inject the script from your own code).
  *
  * Options (as create({...}) or, in a script tag, as data-size, data-speed, data-quality ...)
+ *   skin       "classic" (red and blue) or "widow" (a black widow); two sets of sprite sheets     default "classic"
  *   src        folder with the sprite sheets (assets/<size>/<strip>.webp)                     default: the assets/ folder next to
  *                                                                                              this script, or the CDN copy
  *   size       body length of the spider in CSS px, head to abdomen (the legs reach about 1.8x) default 34
@@ -43,7 +44,8 @@
  *   prefetch   after it appears, quietly fetch the curved-walk sheets within the memory budget    default true
  *   cacheBytes decoded-image memory budget, including images still being decoded                  default 32 MiB
  *   liteSrc    folder for the lite sheets (found beside src when src ends in assets/)             default inferred
- *   shadow     a soft drop shadow                                                              default true
+ *   shadow     a page drop shadow for packs that have no shadow of their own; "extra" adds it to   default true
+ *              these ones too (the sprites carry a soft shadow, rendered under the feet)
  *   touch      also for touch input                                                            default false
  *   minWidth   do nothing on windows narrower than this many px                                default 0
  *   manifest   read manifest.json from src instead of the copy built into this file (only      default false
@@ -62,25 +64,37 @@
   // Where this script was loaded from, read now, while it is running. The sprites live in assets/ beside it, so a page that
   // loads it from anywhere (a CDN, another site, a sub-folder) finds them without being told. The bundler builds blank this.
   var SELF = /*SELF*/typeof document !== "undefined" && document.currentScript && document.currentScript.src ? document.currentScript.src : ""/*ENDSELF*/;
-  var CDN = "https://cdn.jsdelivr.net/npm/spider-crawl-cursor" + (VERSION.charAt(0) === "_" ? "" : "@" + VERSION) + "/assets/";
-  function defaultSrc() {
-    if (!SELF) return CDN;
+  var CDN = "https://cdn.jsdelivr.net/npm/spider-crawl-cursor" + (VERSION.charAt(0) === "_" ? "" : "@" + VERSION) + "/";
+  // the two skins are two folders of sprite sheets, rendered from one model and one walk
+  function packFolder(skin) { return skin === "widow" ? "assets-widow/" : "assets/"; }
+  function defaultSrc(skin) {
+    if (!SELF) return CDN + packFolder(skin);
     var u = SELF.replace(/[#?].*$/, "");
     // .../spider-cursor.min.js -> its folder; a bare package URL (.../npm/spider-crawl-cursor@1) is the folder itself
     u = /\.[cm]?js$/i.test(u) ? u.replace(/[^\/]*$/, "") : u.replace(/\/?$/, "/");
-    return u + "assets/";
+    return u + packFolder(skin);
   }
   var created = 0;
+  // Sheets are fetched and decoded off the main thread only where a fetch is certain to be allowed: the page's own origin, or a public CDN that
+  // sends CORS headers (jsDelivr, unpkg). Anywhere else (a plain static host, file://) the browser would refuse it and log an error, so the
+  // sheet is simply loaded as an image.
+  var FETCHABLE = /^https?:\/\/(?:(?:cdn|fastly|gcore|testingcf|originfastly)\.jsdelivr\.net|unpkg\.com)\//i;
+  function canFetch(url) {
+    try {
+      var u = new URL(url, location.href);
+      return (u.protocol === "http:" || u.protocol === "https:") && (u.origin === location.origin || FETCHABLE.test(u.href));
+    } catch (e) { return false; }
+  }
 
   // what the renders were made with (pack.py rewrites these from the Blender run); this copy is what the page uses unless it asks for manifest.json
-  var META = /*META*/{"frame_px":768,"frame_bu":340.0,"elev":76.0,"pivot_bu":[0.0,-2.0,0.0],"stride_bu":84.0,"turn_deg":48.00000000000001,"beta":0.6,"counts":{"walk0":32,"walk18":32,"walk34":32,"walk50":32,"walk70":32,"pivot":32,"idle_calm":48,"idle_wave":60,"idle_tap":44,"idle_groom":52},"walks":{"walk0":0.0,"walk18":18.0,"walk34":34.0,"walk50":50.0,"walk70":70.0,"pivot":90.0},"head_bu":34.0,"body_bu":136.0,"span_bu":244.0,"cols":8,"tiers":[64,96,128,192,256],"format":"webp","profile":"full"}/*ENDMETA*/;
-  var LITE_META = /*LITEMETA*/{"frame_px":768,"frame_bu":340.0,"elev":76.0,"pivot_bu":[0.0,-2.0,0.0],"stride_bu":84.0,"turn_deg":48.00000000000001,"beta":0.6,"counts":{"walk0":16,"walk34":16,"pivot":16,"idle_calm":12,"idle_still":1},"walks":{"walk0":0.0,"walk34":34.0,"pivot":90.0},"head_bu":34.0,"body_bu":136.0,"span_bu":244.0,"cols":8,"tiers":[64,96,128],"format":"webp","profile":"lite"}/*ENDLITEMETA*/;
+  var META = /*META*/{"frame_px":768,"frame_bu":400.0,"elev":76.0,"pivot_bu":[0.0,10.307,0.0],"stride_bu":135.0,"turn_deg":62.0,"beta":0.56,"counts":{"walk0":32,"walk18":32,"walk34":32,"walk50":32,"walk70":32,"pivot":32,"idle_calm":1,"idle_wave":60,"idle_tap":44,"idle_groom":52,"idle_rock":56},"walks":{"walk0":0.0,"walk18":18.0,"walk34":34.0,"walk50":50.0,"walk70":70.0,"pivot":90.0},"head_bu":29.69,"body_bu":140.0,"span_bu":258.3,"skin":"spidey","shadow":"baked","cols":8,"tiers":[64,96,128,192,256],"format":"webp","profile":"full"}/*ENDMETA*/;
+  var LITE_META = /*LITEMETA*/{"frame_px":768,"frame_bu":400.0,"elev":76.0,"pivot_bu":[0.0,10.307,0.0],"stride_bu":135.0,"turn_deg":62.0,"beta":0.56,"counts":{"walk0":16,"walk34":16,"pivot":16,"idle_calm":1,"idle_still":1},"walks":{"walk0":0.0,"walk34":34.0,"pivot":90.0},"head_bu":29.69,"body_bu":140.0,"span_bu":258.3,"skin":"spidey","shadow":"baked","cols":8,"tiers":[64,96,128],"format":"webp","profile":"lite"}/*ENDLITEMETA*/;
   var COLS = 8;
   var STRIP_STEP = [0, 18, 34, 50, 70, 90];               // the gait strips, by how sharply they turn: 0 walks straight, 90 pivots
   var STRIP_NAME = { 0: "walk0", 18: "walk18", 34: "walk34", 50: "walk50", 70: "walk70", 90: "pivot" };
   var ARC_MAX = 50;                                       // the sharpest turn it makes while it has room to walk (an arc about a body length across)
   var SPECIALS = ["idle_wave", "idle_tap", "idle_groom"];
-  var FADE = 0.08;                                        // seconds to cross-fade when one strip hands over to another
+  var FADE = 0.04;                                        // seconds to cross-fade when one strip hands over to another (neighbouring gaits differ by a frame or two of leg motion, so a longer blend only holds a ghost)
 
   var TAU = Math.PI * 2;
   var wrap = function (a) { return Math.atan2(Math.sin(a), Math.cos(a)); };
@@ -112,9 +126,10 @@
   }
 
   function create(opts) {
-    opts = Object.assign({ src: defaultSrc(), liteSrc: null, size: 34, speed: 1, perch: true, standoff: 0.7, spawn: "edge", fidget: "auto", shadow: true,
+    opts = Object.assign({ src: null, skin: "classic", liteSrc: null, size: 34, speed: 1, perch: true, standoff: 0.7, spawn: "edge", fidget: "auto", shadow: true,
                            touch: false, quality: "auto", motion: "auto", cacheBytes: 32 * 1024 * 1024, preload: true, prefetch: true, minWidth: 0,
-                           manifest: false, zIndex: 2147483647, debug: false }, opts || {});
+                           manifest: false, bitmap: true, idleTrim: 20000, zIndex: 2147483647, debug: false }, opts || {});
+    if (!opts.src) opts.src = defaultSrc(opts.skin);
     created++;
     if (typeof window === "undefined" || (opts.minWidth && window.innerWidth < opts.minWidth)) {
       var no = function () {};
@@ -158,10 +173,14 @@
     var D0 = 1, W0 = 1, HEAD = 0;
 
     function fullBase() { return opts.src.replace(/\/?$/, "/"); }
-    function liteBase() { return (opts.liteSrc || (/assets\/?$/.test(opts.src) ? opts.src.replace(/assets\/?$/, "assets-lite/") : opts.src.replace(/\/?$/, "/") + "lite/")).replace(/\/?$/, "/"); }
+    function liteBase() { return (opts.liteSrc || (/assets(-widow)?\/?$/.test(opts.src) ? opts.src.replace(/assets(-widow)?\/?$/, "assets$1-lite/") : opts.src.replace(/\/?$/, "/") + "lite/")).replace(/\/?$/, "/"); }
     function base() { return effectiveQuality === "lite" ? liteBase() : fullBase(); }
     function configure(m) {
       M = m; COLS = M.cols; STRIP_STEP = []; STRIP_NAME = {}; SPECIALS = [];
+      // the crawl is a speed in body lengths a second, so the cadence follows from how far one gait cycle carries the body
+      F_CRUISE = CRUISE_BL * M.body_bu / M.stride_bu;
+      // sprites that carry their own soft shadow, rendered under the feet, do not want a page drop shadow on top of it
+      if (M.shadow === "baked" && opts.shadow !== "extra") st.filter = "none";
       Object.keys(M.walks || {}).forEach(function (name) { var angle = +M.walks[name]; STRIP_STEP.push(angle); STRIP_NAME[angle] = name; });
       STRIP_STEP.sort(function (a, b) { return a - b; });
       // the sharpest turn it makes while there is room to walk: an arc about a body length across (50 degrees of gait), or the sharpest
@@ -187,7 +206,14 @@
       // One full idle special, or two gait strips during a cross-fade, can be pinned at once.
       return total + Math.max(largestSingle, largestGait * 2);
     }
-    function effectiveCacheLimit() { return Math.max(opts.cacheBytes, minimumWorkingSetBytes()); }
+    // (it is asked for on every frame, and only changes with the sprite pack, the size tier, the motion mode or the budget)
+    var limM = null, limTier = -1, limMotion = "", limBudget = -1, limVal = 0;
+    function effectiveCacheLimit() {
+      if (limM !== M || limTier !== tier || limMotion !== effectiveMotion || limBudget !== opts.cacheBytes) {
+        limM = M; limTier = tier; limMotion = effectiveMotion; limBudget = opts.cacheBytes; limVal = Math.max(opts.cacheBytes, minimumWorkingSetBytes());
+      }
+      return limVal;
+    }
     function isCriticalStrip(name) { return effectiveMotion === "reduced" ? name === "idle_still" : name === "walk0" || name === "idle_calm"; }
     function trimCache(extraBytes) {
       extraBytes = extraBytes || 0;
@@ -208,6 +234,7 @@
         job.resolve(null); delete loading[name];
         // A decode already handed to the browser cannot be synchronously cancelled. Detach its
         // network source; the generation check below prevents a late decode from being published.
+        if (job.abort) job.abort.abort();
         if (job.image && !job.image.complete) job.image.src = "";
       });
     }
@@ -218,21 +245,53 @@
       var T = tier, selectedGeneration = generation, url = base() + T + "/" + name + "." + M.format, cached = cache.get(url);
       if (cached) { cached.used = ++cacheTick; sheets[name] = cached.image; return Promise.resolve(cached.image); }
       var bytes = estimateBytes(name, T), resolveJob;
-      var job = { image: new Image(), bytes: bytes, counted: true, cancelled: false, resolve: null, promise: null };
+      var job = { image: null, abort: null, bytes: bytes, counted: true, cancelled: false, resolve: null, promise: null };
       trimCache(bytes); pendingBytes += bytes;
       job.promise = new Promise(function (resolve) { resolveJob = resolve; job.resolve = resolve; }); loading[name] = job;
-      job.image.decoding = "async";
-      job.image.onload = function () {
-        var decoded = typeof job.image.decode === "function" ? job.image.decode().catch(function () {}) : Promise.resolve();
-        decoded.then(function () {
-          if (job.counted) { pendingBytes -= bytes; job.counted = false; }
-          if (loading[name] === job) delete loading[name];
-          if (dead || job.cancelled || selectedGeneration !== generation || T !== tier) { job.image.src = ""; resolveJob(null); return; }
-          cache.set(url, { image: job.image, bytes: bytes, used: ++cacheTick }); cacheBytes += bytes; sheets[name] = job.image; trimCache(); resolveJob(job.image);
-        });
-      };
-      job.image.onerror = function () { if (job.counted) { pendingBytes -= bytes; job.counted = false; } if (loading[name] === job) delete loading[name]; if (!job.cancelled) error = "Could not load " + url; resolveJob(null); };
-      job.image.src = url; return job.promise;
+      function publish(image) {
+        if (job.counted) { pendingBytes -= bytes; job.counted = false; }
+        if (loading[name] === job) delete loading[name];
+        if (dead || job.cancelled || selectedGeneration !== generation || T !== tier) { release(image); resolveJob(null); return; }
+        cache.set(url, { image: image, bytes: bytes, used: ++cacheTick }); cacheBytes += bytes; sheets[name] = image; trimCache(); resolveJob(image);
+      }
+      function fail() { if (job.counted) { pendingBytes -= bytes; job.counted = false; } if (loading[name] === job) delete loading[name]; if (!job.cancelled) error = "Could not load " + url; resolveJob(null); }
+      // The plain way: an <img>. The browser decodes it lazily, and decodes it again on the main thread the first time a canvas draws it.
+      function viaElement() {
+        var im = job.image = new Image();
+        im.decoding = "async";
+        im.onload = function () {
+          var decoded = typeof im.decode === "function" ? im.decode().catch(function () {}) : Promise.resolve();
+          decoded.then(function () { im.onload = im.onerror = null; if (job.cancelled || dead) im.src = ""; publish(im); });
+        };
+        im.onerror = fail;
+        im.src = url;
+      }
+      // The better way: fetch the file and let createImageBitmap decode it, off the main thread, into pixels that are ready to draw, so the first
+      // draw of a strip costs what every other draw costs (a lazily decoded <img> costs a 15 to 20 ms hitch, once per strip). It needs the host to
+      // allow the fetch (see canFetch); anywhere else, or where the browser lacks createImageBitmap, it is the plain way.
+      if (opts.bitmap && typeof createImageBitmap === "function" && typeof fetch === "function" && typeof AbortController === "function" && canFetch(url)) {
+        job.abort = new AbortController();
+        fetch(url, { signal: job.abort.signal })
+          .then(function (r) { if (!r.ok) throw new Error("status " + r.status); return r.blob(); })
+          .then(function (blob) { return createImageBitmap(blob, { premultiplyAlpha: "premultiply" }); })
+          .then(publish, function () { if (job.cancelled || dead) { resolveJob(null); return; } viaElement(); });
+      } else viaElement();
+      return job.promise;
+    }
+    function release(image) { if (!image) return; if (image.close) image.close(); else if (image.src) { image.onload = image.onerror = null; image.src = ""; } }
+    // A spider that has been sitting on the pointer for a while does not need the sheets for turning: give that memory back (the walk and the
+    // standing sheet stay, so it can set off at once) and fetch them again, from the browser's cache, when it next moves.
+    var trimTimer = 0;
+    function cancelTrim() { if (trimTimer) { clearTimeout(trimTimer); trimTimer = 0; } }
+    function scheduleTrim() { if (!opts.idleTrim || trimTimer || dead) return; trimTimer = setTimeout(trimIdle, opts.idleTrim); }
+    function trimIdle() {
+      trimTimer = 0;
+      if (dead || !M || mode !== "idle" || !perched) return;
+      cache.forEach(function (entry, key) {
+        if (!/\/(walk[1-9]\d*|pivot)\.[a-z0-9]+$/.test(key) || Object.values(sheets).includes(entry.image)) return;
+        cache.delete(key); cacheBytes -= entry.bytes; release(entry.image);
+      });
+      prefetched = "";
     }
     function pumpOptional() {
       if (optionalActive || dead || !shown || !pageVisible || !M || !tier) return;
@@ -255,7 +314,12 @@
     }
     function loadStrip(name) {
       if (!M || !M.counts[name]) return Promise.resolve(null);
-      if (sheets[name] || loading[name] || isCriticalStrip(name)) return startStripLoad(name);
+      if (sheets[name]) return Promise.resolve(sheets[name]);
+      // Already decoded and in the cache: use it. It must not join the queue, whose budget check would count it as new bytes, make room by
+      // evicting the least recently used entry (often this very sheet) and download it all over again.
+      var hit = cache.get(base() + tier + "/" + name + "." + M.format);
+      if (hit) { hit.used = ++cacheTick; sheets[name] = hit.image; return Promise.resolve(hit.image); }
+      if (loading[name] || isCriticalStrip(name)) return startStripLoad(name);
       var existing = optionalByName[name]; if (existing) return existing.promise;
       var resolveEntry, entry = { name: name, generation: generation, tier: tier, cancelled: false, resolve: null, promise: null };
       entry.promise = new Promise(function (resolve) { resolveEntry = resolve; entry.resolve = resolve; });
@@ -330,7 +394,7 @@
       var now = performance.now();
       px = e.clientX; py = e.clientY;
       if (!seen) { seen = true; anchorX = px; anchorY = py; lastMove = now; if (M) { spawn(); st.opacity = "1"; } }
-      beginAssets(); prefetch();
+      cancelTrim(); beginAssets(); prefetch();
       if (Math.hypot(px - anchorX, py - anchorY) > 2.5) { anchorX = px; anchorY = py; lastMove = now; }
       if (perched && Math.hypot(px - perchX, py - perchY) > 2.5) setPerched(false);
       if (effectiveMotion === "reduced" && M) { if (!spawned) spawn(); X = px; Y = py + HEAD; dirty = true; }
@@ -352,7 +416,7 @@
     window.addEventListener("pointerup", onUp, opt);
 
     // ---- one tick of the spider
-    var F_CRUISE = 3.0, A_UP = 320, A_DOWN = 520, A_TURN = 8, MIN_F = 0.85;
+    var CRUISE_BL = 1.85, F_CRUISE = 1.9, A_UP = 320, A_DOWN = 520, A_TURN = 8, MIN_F = 0.85;
     var DEG = Math.PI / 180;
     function step(dt, now) {
       if (effectiveMotion === "reduced") { strip = idleStrip = "idle_still"; mode = "idle"; setPerched(false); return; }
@@ -441,11 +505,13 @@
     }
 
     // ---- drawing
+    var specs = [{ strip: "", i: 0, mirror: false }, { strip: "", i: 0, mirror: false }], specIx = 0;     // two objects used in turn, so a frame allocates none
     function spec() {
       var n = M.counts[strip] || 1, i;
       if (mode === "idle") i = Math.min(n - 1, Math.floor(idleT));
       else { var ph = phase + (mirror ? 0.5 : 0); i = Math.floor((ph - Math.floor(ph)) * n) % n; }
-      return { strip: strip, i: i, mirror: mirror };
+      var o = specs[specIx ^= 1]; o.strip = strip; o.i = i; o.mirror = mirror;
+      return o;
     }
     function blit(sp, alpha) {
       var im = sheets[sp.strip] || sheets.walk0 || sheets.idle_calm || sheets.idle_still;
@@ -462,21 +528,28 @@
       g.restore();
     }
     var pressedAmt = 0, offX = 0, offY = 0;
+    var dStrip = "", dI = -1, dMirror = false, dTh = 0, dPress = 0, dOx = 0, dOy = 0, dFade = 0, pStrip = "", pFrom = "", tx = NaN, ty = NaN;
     function draw(dt) {
       var sp = spec();
       pressedAmt += ((pressed ? 1 : 0) - pressedAmt) * Math.min(1, dt * 18);
-      if (lastSpec && (lastSpec.strip !== sp.strip || lastSpec.mirror !== sp.mirror)) fade = { from: lastSpec, t: 0 };
-      lastSpec = sp;
+      if (lastSpec && (lastSpec.strip !== sp.strip || lastSpec.mirror !== sp.mirror)) fade = { from: { strip: lastSpec.strip, i: lastSpec.i, mirror: lastSpec.mirror }, t: 0 };
+      if (!lastSpec) lastSpec = { strip: "", i: 0, mirror: false };
+      lastSpec.strip = sp.strip; lastSpec.i = sp.i; lastSpec.mirror = sp.mirror;
       if (fade) { fade.t += dt / FADE; if (fade.t >= 1) fade = null; }
       // the canvas sits on whole device pixels (so the compositor never resamples it); the part of a pixel is drawn inside
       var gx = (X - frameCss / 2) * dpr, gy = (Y - frameCss / 2) * dpr, ix = Math.floor(gx), iy = Math.floor(gy);
       offX = gx - ix; offY = gy - iy;
-      cv.style.transform = "translate3d(" + (ix / dpr) + "px," + (iy / dpr) + "px,0)";
-      var key = sp.strip + sp.i + sp.mirror + th.toFixed(3) + pressedAmt.toFixed(2) + offX.toFixed(2) + offY.toFixed(2) + (fade ? "f" + fade.t.toFixed(2) : "");
-      var keep = ["walk0", "idle_calm", "idle_still", sp.strip]; if (fade) keep.push(fade.from.strip);
-      Object.keys(sheets).forEach(function (name) { if (keep.indexOf(name) < 0) delete sheets[name]; }); trimCache(); pumpOptional();
-      if (key === lastKey && !dirty) return;
-      lastKey = key; dirty = false;
+      if (ix !== tx || iy !== ty) { tx = ix; ty = iy; cv.style.transform = "translate3d(" + (ix / dpr) + "px," + (iy / dpr) + "px,0)"; }
+      // keep only the sheets the frame can show; what is let go of stays in the decode cache until the budget needs the room
+      var from = fade ? fade.from.strip : "";
+      if (sp.strip !== pStrip || from !== pFrom) {
+        pStrip = sp.strip; pFrom = from;
+        for (var name in sheets) if (name !== "walk0" && name !== "idle_calm" && name !== "idle_still" && name !== sp.strip && name !== from) delete sheets[name];
+        trimCache(); pumpOptional();
+      }
+      var kTh = Math.round(th * 1000), kPr = Math.round(pressedAmt * 100), kX = Math.round(offX * 100), kY = Math.round(offY * 100), kF = fade ? 1 + Math.round(fade.t * 100) : 0;
+      if (!dirty && sp.strip === dStrip && sp.i === dI && sp.mirror === dMirror && kTh === dTh && kPr === dPress && kX === dOx && kY === dOy && kF === dFade) return;
+      dStrip = sp.strip; dI = sp.i; dMirror = sp.mirror; dTh = kTh; dPress = kPr; dOx = kX; dOy = kY; dFade = kF; dirty = false;
       metrics.draws++;
       g.setTransform(1, 0, 0, 1, 0, 0);
       g.globalCompositeOperation = "source-over";
@@ -512,6 +585,7 @@
       if (mode !== "idle" || Math.abs(v) > 0.01 || Math.abs(w) > 0.002 || fade || Math.abs(pressedAmt - pressed) > 0.01) { raf = requestAnimationFrame(frame); return; }
       var settleDelay = 660 - (now - lastMove);
       if (!perched && settleDelay > 0) { wake(settleDelay); return; }
+      scheduleTrim();
       // A fidget is playing: tick at its own 24 fps, not at the display's rate (60 to 144). Standing still: sleep until the next
       // one is due. With fidget off nothing is scheduled at all: the page does no work for the spider until the pointer moves.
       if (effectiveFidget && idleStrip !== "idle_calm") { wake(30); return; }
@@ -560,15 +634,17 @@
     var api = {
       destroy: function () {
         if (dead) return;
-        dead = true; stopLoop(); generation++; cancelLoads(); if (manifestController) manifestController.abort();
+        dead = true; stopLoop(); cancelTrim(); generation++; cancelLoads(); if (manifestController) manifestController.abort();
         window.removeEventListener("pointermove", onMove, opt); window.removeEventListener("pointerdown", onDown, opt);
         window.removeEventListener("pointerup", onUp, opt); window.removeEventListener("resize", onResize); document.removeEventListener("visibilitychange", onVisibility);
         if (motionMedia) { if (motionMedia.removeEventListener) motionMedia.removeEventListener("change", onMotionChange); else if (motionMedia.removeListener) motionMedia.removeListener(onMotionChange); }
         releaseCursorStyle(cursorOwner);
+        cache.forEach(function (entry) { release(entry.image); }); cache.clear(); sheets = {};
         cv.remove();
       },
       setSize: setSize,
-      set: function (o) { var policy = false; o = o || {}; Object.keys(o).forEach(function (k) { if (["quality", "motion", "src", "liteSrc", "cacheBytes"].indexOf(k) >= 0 && opts[k] !== o[k]) policy = true; opts[k] = o[k]; }); if (o.fidget !== undefined) resolvePolicy(); if (o.size) setSize(o.size); if (policy) reconfigure(); else wake(); },
+      set: function (o) { var policy = false; o = o || {};
+        /* another skin is another folder of sheets */ if (o.skin !== undefined && o.src === undefined && o.skin !== opts.skin) o = Object.assign({}, o, { src: defaultSrc(o.skin) }); Object.keys(o).forEach(function (k) { if (["quality", "motion", "src", "liteSrc", "cacheBytes"].indexOf(k) >= 0 && opts[k] !== o[k]) policy = true; opts[k] = o[k]; }); if (o.fidget !== undefined) resolvePolicy(); if (o.size) setSize(o.size); if (policy) reconfigure(); else wake(); },
       show: function () { shown = true; inputOk = true; if (seen) { if (!M) beginAssets(); else if (!ready) ensureCritical(); if (ready) st.opacity = "1"; } wake(); },
       hide: function () { shown = false; inputOk = false; st.opacity = "0"; setPerched(false); suspendPending(); },
       position: function () { return { x: X, y: Y, head: head() }; },
@@ -581,9 +657,9 @@
   // (so the explicit form below it is still fine) or the tag says data-manual / data-auto="false".
   function fromTag(el) {
     var d = el.dataset, o = {};
-    ["src", "liteSrc", "spawn", "quality", "motion"].forEach(function (k) { if (d[k]) o[k] = d[k]; });
-    ["size", "speed", "standoff", "minWidth", "cacheBytes", "zIndex"].forEach(function (k) { if (d[k] !== undefined && d[k] !== "" && !isNaN(+d[k])) o[k] = +d[k]; });
-    ["perch", "shadow", "touch", "manifest", "preload", "prefetch"].forEach(function (k) { if (d[k] !== undefined) o[k] = d[k] !== "false" && d[k] !== "0"; });
+    ["src", "skin", "liteSrc", "spawn", "quality", "motion"].forEach(function (k) { if (d[k]) o[k] = d[k]; });
+    ["size", "speed", "standoff", "minWidth", "cacheBytes", "idleTrim", "zIndex"].forEach(function (k) { if (d[k] !== undefined && d[k] !== "" && !isNaN(+d[k])) o[k] = +d[k]; });
+    ["perch", "shadow", "touch", "manifest", "preload", "prefetch", "bitmap"].forEach(function (k) { if (d[k] !== undefined) o[k] = d[k] !== "false" && d[k] !== "0"; });
     if (d.fidget !== undefined) o.fidget = d.fidget === "auto" ? "auto" : d.fidget !== "false" && d.fidget !== "0";
     return o;
   }
